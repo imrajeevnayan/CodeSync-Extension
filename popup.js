@@ -1,12 +1,5 @@
 "use strict";
 
-// GitHub does not allow a browser extension to safely keep an OAuth client secret,
-// so CodeSync uses OAuth Device Flow with this public Client ID bundled in the app.
-// Replace this once with your GitHub OAuth App Client ID before publishing.
-const CODESYNC_GITHUB_CLIENT_ID = "Ov23likMwfQLsGH9E40I";
-const GITHUB_OAUTH_SCOPE = "repo";
-const GITHUB_DEVICE_CODE_URL = "https://github.com/login/device/code";
-const GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token";
 const GITHUB_RATE_LIMIT_RETRY_MS = 60 * 1000;
 const GITHUB_MAX_RETRIES = 2;
 
@@ -34,6 +27,11 @@ const fields = {
 };
 
 document.addEventListener("DOMContentLoaded", restoreSettings);
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === "sync" && (changes.githubToken || changes.githubUser || changes.repository)) {
+    restoreSettings();
+  }
+});
 form.addEventListener("submit", (event) => event.preventDefault());
 loginButton.addEventListener("click", loginWithGitHub);
 logoutButton.addEventListener("click", logoutFromGitHub);
@@ -72,25 +70,10 @@ async function loginWithGitHub() {
 
   try {
     const formSettings = readForm();
-    const clientId = getGitHubClientId();
-    ensureOAuthClientId(clientId);
     await setStorage(formSettings);
-    const deviceData = await requestDeviceCode(clientId);
-
-    showMessage(`Enter code ${deviceData.user_code} in the GitHub tab.`, "");
-    window.open(deviceData.verification_uri, "_blank", "noopener,noreferrer");
-
-    const token = await pollForAccessToken(deviceData, clientId);
-    const user = await fetchGitHubUser(token);
-    await setStorage({
-      githubToken: token,
-      githubUser: user.login || user.name || "GitHub user"
-    });
-
-    const settings = await getStorage(DEFAULT_SETTINGS);
-    updateAuthUi(settings);
-    await loadRepositoryOptions(token, settings.repository);
-    showMessage(`Connected as ${settings.githubUser}.`, "success");
+    const auth = await startBackgroundGitHubAuth();
+    await copyDeviceCode(auth.userCode);
+    showMessage(`Code copied: ${auth.userCode}. Complete authorization in the GitHub tab, then reopen CodeSync.`, "");
   } catch (error) {
     showMessage(error.message, "error");
   } finally {
@@ -157,84 +140,6 @@ async function createRepository() {
   } finally {
     createRepoButton.disabled = false;
   }
-}
-
-async function requestDeviceCode(clientId) {
-  const response = await fetch(GITHUB_DEVICE_CODE_URL, {
-    method: "POST",
-    headers: {
-      "Accept": "application/json",
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      client_id: clientId,
-      scope: GITHUB_OAUTH_SCOPE
-    })
-  });
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok || data.error) {
-    throw new Error(data.error_description || data.message || "Could not start GitHub login.");
-  }
-
-  return data;
-}
-
-async function pollForAccessToken(deviceData, clientId) {
-  const expiresAt = Date.now() + Number(deviceData.expires_in || 900) * 1000;
-  let intervalSeconds = Number(deviceData.interval || 5);
-
-  while (Date.now() < expiresAt) {
-    await delay(intervalSeconds * 1000);
-
-    const response = await fetch(GITHUB_ACCESS_TOKEN_URL, {
-      method: "POST",
-      headers: {
-        "Accept": "application/json",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        client_id: clientId,
-        device_code: deviceData.device_code,
-        grant_type: "urn:ietf:params:oauth:grant-type:device_code"
-      })
-    });
-
-    const data = await response.json().catch(() => ({}));
-    if (data.access_token) {
-      return data.access_token;
-    }
-
-    if (data.error === "authorization_pending") {
-      continue;
-    }
-
-    if (data.error === "slow_down") {
-      intervalSeconds += 5;
-      continue;
-    }
-
-    throw new Error(data.error_description || data.message || "GitHub login was not completed.");
-  }
-
-  throw new Error("GitHub login timed out. Start login again from the popup.");
-}
-
-async function fetchGitHubUser(token) {
-  const response = await githubFetch("https://api.github.com/user", {
-    headers: {
-      "Accept": "application/vnd.github+json",
-      "Authorization": `Bearer ${token}`,
-      "X-GitHub-Api-Version": "2022-11-28"
-    }
-  });
-
-  if (!response.ok) {
-    const detail = await response.json().catch(() => ({}));
-    throw new Error(`Could not read GitHub profile: ${detail.message || response.statusText}`);
-  }
-
-  return response.json();
 }
 
 async function fetchGitHubRepositories(token) {
@@ -368,9 +273,11 @@ function getRateLimitDelay(response) {
   return GITHUB_RATE_LIMIT_RETRY_MS;
 }
 
-function ensureOAuthClientId(clientId) {
-  if (!clientId) {
-    throw new Error("CodeSync GitHub login is not configured. Set CODESYNC_GITHUB_CLIENT_ID in popup.js.");
+async function copyDeviceCode(userCode) {
+  try {
+    await navigator.clipboard.writeText(userCode);
+  } catch (error) {
+    console.warn("CodeSync could not copy the GitHub device code automatically.");
   }
 }
 
@@ -381,11 +288,6 @@ function normalizeRepositoryName(value) {
     .replace(/[^A-Za-z0-9._-]/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 100);
-}
-
-function getGitHubClientId() {
-  const clientId = String(CODESYNC_GITHUB_CLIENT_ID || "").trim();
-  return clientId === "YOUR_GITHUB_OAUTH_CLIENT_ID" ? "" : clientId;
 }
 
 function updateAuthUi(settings) {
@@ -402,6 +304,25 @@ function updateAuthUi(settings) {
   const configured = connected && repositoryReady;
   statusBadge.textContent = configured ? "Ready" : connected ? "GitHub connected" : "Not configured";
   statusBadge.classList.toggle("ready", configured);
+}
+
+function startBackgroundGitHubAuth() {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage({ type: "CODESYNC_AUTH_START" }, (response) => {
+      const error = chrome.runtime.lastError;
+      if (error) {
+        reject(new Error(error.message));
+        return;
+      }
+
+      if (!response?.ok) {
+        reject(new Error(response?.error || "Could not start GitHub login."));
+        return;
+      }
+
+      resolve(response.result);
+    });
+  });
 }
 
 async function updateAuthUiFromStorage() {

@@ -1,5 +1,11 @@
 "use strict";
 
+const CODESYNC_GITHUB_CLIENT_ID = "Ov23likMwfQLsGH9E40I";
+const GITHUB_OAUTH_SCOPE = "repo";
+const GITHUB_DEVICE_CODE_URL = "https://github.com/login/device/code";
+const GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token";
+const AUTH_ALARM_NAME = "codesync-github-auth-poll";
+
 const DEFAULT_SETTINGS = {
   githubToken: "",
   repository: "",
@@ -62,7 +68,23 @@ chrome.runtime.onInstalled.addListener(async () => {
   await setStorage({ ...DEFAULT_SETTINGS, ...removeUndefined(existing) });
 });
 
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === AUTH_ALARM_NAME) {
+    pollGitHubAuth().catch((error) => {
+      console.warn("CodeSync GitHub auth polling failed:", error.message);
+      notify("CodeSync GitHub login failed", error.message || "Login could not be completed.");
+    });
+  }
+});
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "CODESYNC_AUTH_START") {
+    startGitHubAuth()
+      .then((result) => sendResponse({ ok: true, result }))
+      .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
+    return true;
+  }
+
   if (!message || message.type !== "CODESYNC_SUBMISSION") {
     return false;
   }
@@ -77,6 +99,150 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return true;
 });
+
+async function startGitHubAuth() {
+  const clientId = getGitHubClientId();
+  const deviceData = await requestDeviceCode(clientId);
+  const intervalSeconds = Number(deviceData.interval || 5);
+  const authState = {
+    clientId,
+    deviceCode: deviceData.device_code,
+    userCode: deviceData.user_code,
+    verificationUrl: buildVerificationUrl(deviceData),
+    intervalSeconds,
+    expiresAt: Date.now() + Number(deviceData.expires_in || 900) * 1000
+  };
+
+  await setLocalStorage({ codesyncAuthState: authState });
+  scheduleAuthPoll(intervalSeconds);
+
+  chrome.tabs.create({ url: authState.verificationUrl }, () => {
+    const error = chrome.runtime.lastError;
+    if (error) {
+      console.warn("CodeSync could not open GitHub login tab:", error.message);
+    }
+  });
+
+  return {
+    userCode: authState.userCode,
+    verificationUrl: authState.verificationUrl
+  };
+}
+
+async function requestDeviceCode(clientId) {
+  const response = await fetch(GITHUB_DEVICE_CODE_URL, {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      client_id: clientId,
+      scope: GITHUB_OAUTH_SCOPE
+    })
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.error) {
+    throw new Error(data.error_description || data.message || "Could not start GitHub login.");
+  }
+
+  return data;
+}
+
+async function pollGitHubAuth() {
+  const { codesyncAuthState: authState } = await getLocalStorage({ codesyncAuthState: null });
+  if (!authState) {
+    return;
+  }
+
+  if (Date.now() >= authState.expiresAt) {
+    await clearAuthState();
+    notify("CodeSync GitHub login expired", "Start GitHub login again from the CodeSync popup.");
+    return;
+  }
+
+  const response = await fetch(GITHUB_ACCESS_TOKEN_URL, {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      client_id: authState.clientId,
+      device_code: authState.deviceCode,
+      grant_type: "urn:ietf:params:oauth:grant-type:device_code"
+    })
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (data.access_token) {
+    const user = await fetchGitHubUser(data.access_token);
+    await setStorage({
+      githubToken: data.access_token,
+      githubUser: user.login || user.name || "GitHub user"
+    });
+    await clearAuthState();
+    notify("CodeSync GitHub connected", `Connected as ${user.login || user.name || "GitHub user"}.`);
+    return;
+  }
+
+  if (data.error === "authorization_pending") {
+    scheduleAuthPoll(authState.intervalSeconds);
+    return;
+  }
+
+  if (data.error === "slow_down") {
+    authState.intervalSeconds = Number(authState.intervalSeconds || 5) + 5;
+    await setLocalStorage({ codesyncAuthState: authState });
+    scheduleAuthPoll(authState.intervalSeconds);
+    return;
+  }
+
+  await clearAuthState();
+  throw new Error(data.error_description || data.message || "GitHub login was not completed.");
+}
+
+async function fetchGitHubUser(token) {
+  const response = await githubFetch("https://api.github.com/user", {
+    headers: githubHeaders(token)
+  });
+
+  if (!response.ok) {
+    throw new Error(await githubErrorMessage(response, "Could not validate GitHub login"));
+  }
+
+  return response.json();
+}
+
+function scheduleAuthPoll(intervalSeconds) {
+  chrome.alarms.create(AUTH_ALARM_NAME, {
+    when: Date.now() + Math.max(Number(intervalSeconds || 5), 1) * 1000
+  });
+}
+
+async function clearAuthState() {
+  await removeLocalStorage(["codesyncAuthState"]);
+  chrome.alarms.clear(AUTH_ALARM_NAME);
+}
+
+function buildVerificationUrl(deviceData) {
+  if (deviceData.verification_uri_complete) {
+    return deviceData.verification_uri_complete;
+  }
+
+  const url = new URL(deviceData.verification_uri);
+  url.searchParams.set("user_code", deviceData.user_code);
+  return url.toString();
+}
+
+function getGitHubClientId() {
+  const clientId = String(CODESYNC_GITHUB_CLIENT_ID || "").trim();
+  if (!clientId || clientId === "YOUR_GITHUB_OAUTH_CLIENT_ID") {
+    throw new Error("CodeSync GitHub login is not configured. Set CODESYNC_GITHUB_CLIENT_ID in background.js.");
+  }
+  return clientId;
+}
 
 async function handleSubmission(rawSubmission, sender) {
   const settings = await getSettings();
@@ -476,6 +642,45 @@ function getStorage(defaults) {
 function setStorage(values) {
   return new Promise((resolve, reject) => {
     chrome.storage.sync.set(values, () => {
+      const error = chrome.runtime.lastError;
+      if (error) {
+        reject(new Error(error.message));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+function getLocalStorage(defaults) {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get(defaults, (result) => {
+      const error = chrome.runtime.lastError;
+      if (error) {
+        reject(new Error(error.message));
+        return;
+      }
+      resolve(result);
+    });
+  });
+}
+
+function setLocalStorage(values) {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.set(values, () => {
+      const error = chrome.runtime.lastError;
+      if (error) {
+        reject(new Error(error.message));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+function removeLocalStorage(keys) {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.remove(keys, () => {
       const error = chrome.runtime.lastError;
       if (error) {
         reject(new Error(error.message));

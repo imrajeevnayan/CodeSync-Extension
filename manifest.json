@@ -5,7 +5,8 @@
   "description": "Automatically sync accepted coding platform submissions to a GitHub repository.",
   "permissions": [
     "storage",
-    "notifications"
+    "notifications",
+    "alarms"
   ],
   "host_permissions": [
     "https://api.github.com/*",
