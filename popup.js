@@ -3,7 +3,7 @@
 // GitHub does not allow a browser extension to safely keep an OAuth client secret,
 // so CodeSync uses OAuth Device Flow with this public Client ID bundled in the app.
 // Replace this once with your GitHub OAuth App Client ID before publishing.
-const CODESYNC_GITHUB_CLIENT_ID = "YOUR_GITHUB_OAUTH_CLIENT_ID";
+const CODESYNC_GITHUB_CLIENT_ID = "Ov23likMwfQLsGH9E40I";
 const GITHUB_OAUTH_SCOPE = "repo";
 const GITHUB_DEVICE_CODE_URL = "https://github.com/login/device/code";
 const GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token";
