@@ -251,7 +251,14 @@ async function handleSubmission(rawSubmission, sender) {
 
   // Normalize content-script data before deriving paths or writing to GitHub.
   const submission = normalizeSubmission(rawSubmission, sender);
-  const files = buildSubmissionFiles(submission, settings);
+  const basePaths = buildSubmissionBasePaths(submission, settings);
+  const extension = extensionForLanguage(submission.language);
+  const solutionFileName = `solution.${extension}`;
+  const solutionHeader = getCommentHeader(submission, extension);
+  const readmeContent = buildReadme(submission);
+  const metadataContent = `${JSON.stringify(buildMetadata(submission), null, 2)}\n`;
+  const solutionContent = `${solutionHeader}${submission.sourceCode.trim()}\n`;
+
   const commitMessage = renderCommitMessage(settings.commitTemplate, submission);
 
   const writeContext = {
@@ -262,23 +269,26 @@ async function handleSubmission(rawSubmission, sender) {
     message: commitMessage
   };
 
-  await putGitHubFile({
-    ...writeContext,
-    path: files.solution.path,
-    content: files.solution.content
-  });
+  // Sync to all computed base paths
+  for (const basePath of basePaths) {
+    await putGitHubFile({
+      ...writeContext,
+      path: joinPath(basePath, solutionFileName),
+      content: solutionContent
+    });
 
-  await putGitHubFile({
-    ...writeContext,
-    path: files.readme.path,
-    content: files.readme.content
-  });
+    await putGitHubFile({
+      ...writeContext,
+      path: joinPath(basePath, "README.md"),
+      content: readmeContent
+    });
 
-  await putGitHubFile({
-    ...writeContext,
-    path: files.metadata.path,
-    content: files.metadata.content
-  });
+    await putGitHubFile({
+      ...writeContext,
+      path: joinPath(basePath, "metadata.json"),
+      content: metadataContent
+    });
+  }
 
   if (settings.enableDailyStreak) {
     await putGitHubFile({
@@ -290,7 +300,11 @@ async function handleSubmission(rawSubmission, sender) {
   }
 
   notify("CodeSync synced solution", `${submission.platform}: ${submission.title}`);
-  return { solutionPath: files.solution.path, readmePath: files.readme.path, metadataPath: files.metadata.path };
+  return {
+    solutionPath: joinPath(basePaths[0], solutionFileName),
+    readmePath: joinPath(basePaths[0], "README.md"),
+    metadataPath: joinPath(basePaths[0], "metadata.json")
+  };
 }
 
 function normalizeSubmission(rawSubmission, sender) {
@@ -322,52 +336,86 @@ function normalizeSubmission(rawSubmission, sender) {
   };
 }
 
-function buildSubmissionFiles(submission, settings) {
-  const extension = extensionForLanguage(submission.language);
-  const basePath = buildSubmissionBasePath(submission, settings);
-  const solutionFileName = `solution.${extension}`;
-  const solutionHeader = getCommentHeader(submission, extension);
-  const readme = buildReadme(submission);
-  const metadata = buildMetadata(submission);
-
-  return {
-    solution: {
-      path: joinPath(basePath, solutionFileName),
-      content: `${solutionHeader}${submission.sourceCode.trim()}\n`
-    },
-    readme: {
-      path: joinPath(basePath, "README.md"),
-      content: readme
-    },
-    metadata: {
-      path: joinPath(basePath, "metadata.json"),
-      content: `${JSON.stringify(metadata, null, 2)}\n`
-    }
-  };
-}
-
-function buildSubmissionBasePath(submission, settings) {
-  const values = {
-    baseFolder: settings.baseFolder || DEFAULT_SETTINGS.baseFolder,
-    platform: submission.platform,
-    difficulty: submission.difficulty,
-    language: displayLanguage(submission.language),
-    problemTitle: submission.title,
-    title: submission.title,
-    primaryTag: primaryTopic(submission.topics)
-  };
+function buildSubmissionBasePaths(submission, settings) {
+  const baseFolder = settings.baseFolder || DEFAULT_SETTINGS.baseFolder;
+  const platform = sanitizePathPart(submission.platform);
+  const difficulty = sanitizePathPart(submission.difficulty).toLowerCase(); // e.g. easy, medium, hard, unknown
+  const problemTitle = sanitizePathPart(submission.title);
 
   if (cleanText(settings.folderConvention)) {
-    return renderFolderConvention(settings.folderConvention, values);
+    const values = {
+      baseFolder: baseFolder,
+      platform: submission.platform,
+      difficulty: submission.difficulty,
+      language: displayLanguage(submission.language),
+      problemTitle: submission.title,
+      title: submission.title,
+      primaryTag: primaryTopic(submission.topics)
+    };
+    return [renderFolderConvention(settings.folderConvention, values)];
   }
 
-  return joinPath(
-    ...sanitizePath(values.baseFolder),
-    sanitizePathPart(values.platform),
-    settings.organizeByDifficulty ? sanitizePathPart(values.difficulty) : "",
-    settings.organizeByLanguage ? sanitizePathPart(values.language) : "",
-    sanitizePathPart(values.problemTitle)
-  );
+  const paths = [];
+  const topics = normalizeTopics(submission.topics);
+  const topicFolders = topics.map((t) => normalizeTopicFolderName(t));
+
+  // Sync to topic folders (up to 3 topics to avoid rate limits)
+  const syncTopics = topicFolders.slice(0, 3);
+  syncTopics.forEach((topicFolder) => {
+    paths.push(joinPath(
+      ...sanitizePath(baseFolder),
+      platform,
+      difficulty,
+      topicFolder,
+      problemTitle
+    ));
+  });
+
+  // Sync to difficulty-specific "all" folder
+  paths.push(joinPath(
+    ...sanitizePath(baseFolder),
+    platform,
+    difficulty,
+    "all",
+    problemTitle
+  ));
+
+  // Sync to platform-wide "all" folder
+  paths.push(joinPath(
+    ...sanitizePath(baseFolder),
+    platform,
+    "all",
+    problemTitle
+  ));
+
+  return [...new Set(paths)];
+}
+
+function normalizeTopicFolderName(topic) {
+  const name = cleanText(topic).toLowerCase();
+
+  if (name.includes("two pointer")) return "two-pointer";
+  if (name.includes("binary search")) return "binary-search";
+  if (name.includes("dynamic programming") || name === "dp") return "dynamic-programming";
+  if (name.includes("hash table") || name.includes("hash map") || name.includes("hash")) return "hash-table";
+  if (name.includes("union find") || name.includes("disjoint set")) return "union-find";
+  if (name.includes("sliding window")) return "sliding-window";
+  if (name.includes("bit manipulation")) return "bit-manipulation";
+  if (name.includes("segment tree")) return "segment-tree";
+  if (name.includes("binary indexed tree") || name.includes("fenwick")) return "binary-indexed-tree";
+  if (name.includes("topological")) return "topological-sort";
+  if (name.includes("shortest path")) return "shortest-path";
+  if (name.includes("number theory")) return "number-theory";
+  if (name.includes("priority queue") || name.includes("heap")) return "priority-queue";
+  if (name.includes("divide and conquer")) return "divide-and-conquer";
+  if (name.includes("backtracking")) return "backtracking";
+  if (name.includes("recursion")) return "recursion";
+
+  let slug = name.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  if (slug.endsWith("s") && slug.length > 3) {
+    slug = slug.slice(0, -1);
+  }
+  return slug || "uncategorized";
 }
 
 function renderFolderConvention(convention, values) {
@@ -732,8 +780,20 @@ function primaryTopic(topics) {
 }
 
 function normalizeDifficulty(value) {
-  const difficulty = cleanText(value);
-  return difficulty || "Unknown";
+  const difficulty = cleanText(value).toLowerCase();
+  if (!difficulty) return "Unknown";
+
+  const rating = parseInt(difficulty.replace(/[^\d]/g, ""), 10);
+  if (!isNaN(rating)) {
+    if (rating < 1200) return "Easy";
+    if (rating < 1900) return "Medium";
+    return "Hard";
+  }
+
+  if (difficulty.includes("easy") || difficulty.includes("simple") || difficulty.includes("basic") || difficulty.includes("school")) return "Easy";
+  if (difficulty.includes("medium") || difficulty.includes("intermediate") || difficulty.includes("moderate")) return "Medium";
+  if (difficulty.includes("hard") || difficulty.includes("difficult") || difficulty.includes("hardcore") || difficulty.includes("challenge")) return "Hard";
+  return "Unknown";
 }
 
 function sanitizePathPart(value) {

@@ -21,6 +21,7 @@ const repositorySelect = document.getElementById("repositorySelect");
 const refreshReposButton = document.getElementById("refreshReposButton");
 const createRepoButton = document.getElementById("createRepoButton");
 const newRepositoryName = document.getElementById("newRepositoryName");
+const selectedRepository = document.getElementById("selectedRepository");
 
 const fields = {
   repository: document.getElementById("repository")
@@ -42,6 +43,7 @@ repositorySelect.addEventListener("change", () => {
     fields.repository.value = repositorySelect.value;
     setStorage({ repository: repositorySelect.value });
     updateAuthUiFromStorage();
+    updateSelectedRepository(repositorySelect.value);
     showMessage(`Selected ${repositorySelect.value}.`, "success");
   }
 });
@@ -55,6 +57,7 @@ async function restoreSettings() {
       }
     });
     updateAuthUi(settings);
+    updateSelectedRepository(settings.repository);
     if (settings.githubToken) {
       await loadRepositoryOptions(settings.githubToken, settings.repository);
     }
@@ -134,6 +137,7 @@ async function createRepository() {
     await setStorage({ repository: repository.full_name });
     await loadRepositoryOptions(settings.githubToken, repository.full_name);
     updateAuthUi({ ...settings, repository: repository.full_name });
+    updateSelectedRepository(repository.full_name);
     showMessage(`Created and selected ${repository.full_name}.`, "success");
   } catch (error) {
     showMessage(error.message, "error");
@@ -218,6 +222,8 @@ async function loadRepositoryOptions(token, selectedRepository) {
     }
     repositorySelect.value = selectedRepository;
   }
+
+  updateSelectedRepository(repositorySelect.value || selectedRepository);
 }
 
 function readForm() {
@@ -304,6 +310,11 @@ function updateAuthUi(settings) {
   const configured = connected && repositoryReady;
   statusBadge.textContent = configured ? "Ready" : connected ? "GitHub connected" : "Not configured";
   statusBadge.classList.toggle("ready", configured);
+  updateSelectedRepository(fields.repository.value.trim());
+}
+
+function updateSelectedRepository(repository) {
+  selectedRepository.textContent = repository ? `Selected: ${repository}` : "No repository selected";
 }
 
 function startBackgroundGitHubAuth() {

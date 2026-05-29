@@ -118,6 +118,15 @@ p {
   font-weight: 650;
 }
 
+.selected-repo {
+  display: block;
+  min-height: 18px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
 input,
 select {
   width: 100%;

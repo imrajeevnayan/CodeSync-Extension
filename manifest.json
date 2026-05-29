@@ -33,7 +33,9 @@
     "https://binarysearch.com/*",
     "https://cses.fi/*",
     "https://onlinejudge.org/*",
-    "https://uva.onlinejudge.org/*"
+    "https://uva.onlinejudge.org/*",
+    "https://*.naukri.com/*",
+    "https://*.lintcode.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -62,7 +64,9 @@
         "https://binarysearch.com/*",
         "https://cses.fi/*",
         "https://onlinejudge.org/*",
-        "https://uva.onlinejudge.org/*"
+        "https://uva.onlinejudge.org/*",
+        "https://*.naukri.com/*",
+        "https://*.lintcode.com/*"
       ],
       "js": [
         "content.js"

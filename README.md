@@ -59,35 +59,39 @@ CodeSync/
 - SPOJ
 - GeeksforGeeks
 - Exercism
-- Coding Ninjas
+- Coding Ninjas (Code360)
 - NeetCode
 - BinarySearch
 - CSES
 - UVa Online Judge
+- LintCode
 
 ## Repository Structure
 
-CodeSync saves submissions using this structure:
+By default, CodeSync automatically maps each accepted submission to multiple paths in your repository to give you the most organized view possible:
 
-```text
-{baseFolder}/
-  {platform}/
-    {problemTitle}/
-      solution.{languageExtension}
-      README.md
-      metadata.json
-```
+1. **Difficulty + Topic folders** (creates a folder for each of the primary topics, up to 3):
+   ```text
+   {baseFolder}/{platform}/{difficulty}/{topic}/{problemTitle}/
+   ```
+   *Example*: `CodeSync/leetcode/easy/two-pointer/two-sum/`
 
-Example:
+2. **Difficulty "All" folder**:
+   ```text
+   {baseFolder}/{platform}/{difficulty}/all/{problemTitle}/
+   ```
+   *Example*: `CodeSync/leetcode/easy/all/two-sum/`
 
-```text
-CodeSync/
-  LeetCode/
-    Two Sum/
-      solution.py
-      README.md
-      metadata.json
-```
+3. **Platform-wide "All" folder**:
+   ```text
+   {baseFolder}/{platform}/all/{problemTitle}/
+   ```
+   *Example*: `CodeSync/leetcode/all/two-sum/`
+
+Each problem folder contains:
+- `solution.{languageExtension}`: The synced source code with metadata comments header.
+- `README.md`: The formatted problem details and description.
+- `metadata.json`: Machine-readable metadata.
 
 `metadata.json` contains:
 
@@ -105,74 +109,29 @@ CodeSync/
 
 Folders are created automatically by GitHub when CodeSync writes files. CodeSync does not create empty folders, which keeps the repository clean and avoids duplicate folder commits.
 
-### Optional Folder Settings
+### Custom Folder Settings (Optional)
 
-These settings are internal and can be stored in `chrome.storage.sync`:
-
-```json
-{
-  "organizeByDifficulty": true,
-  "organizeByLanguage": true,
-  "folderConvention": ""
-}
-```
-
-With difficulty enabled:
-
-```text
-CodeSync/
-  LeetCode/
-    Easy/
-      Two Sum/
-        solution.py
-        README.md
-        metadata.json
-```
-
-With language enabled:
-
-```text
-CodeSync/
-  LeetCode/
-    Python 3/
-      Two Sum/
-        solution.py
-        README.md
-        metadata.json
-```
-
-With both enabled:
-
-```text
-CodeSync/
-  LeetCode/
-    Easy/
-      Python 3/
-        Two Sum/
-          solution.py
-          README.md
-          metadata.json
-```
-
-Custom convention supports these placeholders:
-
-```text
-{baseFolder}
-{platform}
-{difficulty}
-{language}
-{problemTitle}
-{title}
-{primaryTag}
-```
-
-Example:
+If you prefer a single custom path structure instead of the automatic multi-path layout, you can configure a `folderConvention` setting stored in `chrome.storage.sync`:
 
 ```json
 {
   "folderConvention": "{baseFolder}/{platform}/{difficulty}/{language}/{problemTitle}"
 }
 ```
+
+Custom convention supports these placeholders:
+- `{baseFolder}`
+- `{platform}`
+- `{difficulty}`
+- `{language}`
+- `{problemTitle}`
+- `{title}`
+- `{primaryTag}`
+
+### Topic & Difficulty Normalization
+
+- **Difficulty mapping**: Classifies rating values and string keywords into three primary levels: `easy`, `medium`, `hard` (defaulting to `unknown` if undetermined).
+- **Topic slugification**: Standardizes topic tags into clean, uniform folder names (e.g. converting `"two pointer"` or `"two pointers"` to `two-pointer`, `"dynamic programming"` or `"dp"` to `dynamic-programming`, etc.).
 
 ## Files
 

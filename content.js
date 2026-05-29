@@ -86,8 +86,8 @@
     },
     {
       id: "codingninjas",
-      name: "Coding Ninjas",
-      matches: () => hostIncludes("codingninjas.com"),
+      name: "Coding Ninjas (Code360)",
+      matches: () => hostIncludes("codingninjas.com") || (hostIncludes("naukri.com") && location.pathname.includes("/code360")),
       extractor: extractCodingNinjas
     },
     {
@@ -113,6 +113,12 @@
       name: "UVa Online Judge",
       matches: () => hostIncludes("onlinejudge.org") || hostIncludes("uva.onlinejudge.org"),
       extractor: extractUva
+    },
+    {
+      id: "lintcode",
+      name: "LintCode",
+      matches: () => hostIncludes("lintcode.com"),
+      extractor: extractLintCode
     }
   ];
 
@@ -367,7 +373,7 @@
       language: textFromSelectors(["select[name='programTypeId'] option:checked", "td.status-party-cell + td", ".program-source-text + div"]),
       sourceCode: codeFromSelectors(["#sourceCodeTextarea", "pre.program-source", ".source", "pre", "code"]),
       topics: topicsFromSelectors([".tag-box", ".roundbox .tag", "a[href*='/problemset/tags/']"]),
-      difficulty: textFromSelectors([".difficulty", "[class*='difficulty']"]),
+      difficulty: textFromSelectors([".difficulty", "[class*='difficulty']"]) || inferCodeforcesDifficulty(),
       runtime: textFromSelectors([".time-consumed-cell", "td[title*='Time']"]) || metricFromPage(/time\s*:?\s*([.\d]+\s*(?:ms|s))/i),
       memory: textFromSelectors([".memory-consumed-cell", "td[title*='Memory']"]) || metricFromPage(/memory\s*:?\s*([.\d]+\s*(?:mb|kb|gb|bytes))/i),
       description: textFromSelectors([".problem-statement"]),
@@ -376,14 +382,15 @@
   }
 
   function extractAtCoder() {
+    const title = textFromSelectors(["span.h2", ".h2", "#task-statement h2", "h1"]);
     return {
       accepted: pageHasAcceptedText([".label-success", ".submission-score", "#judge-status", ".table"]) &&
         /\bAC\b|\bAccepted\b/i.test(document.body.innerText),
-      title: textFromSelectors(["span.h2", ".h2", "#task-statement h2", "h1"]),
+      title,
       language: textFromSelectors(["select[name='data.LanguageId'] option:checked", "#select-lang option:checked", ".prettyprint + p"]),
       sourceCode: codeFromAce() || codeFromSelectors(["#editor textarea", "pre.prettyprint", "pre", "code"]),
       topics: topicsFromSelectors([".breadcrumb a", "a[href*='/contests/']"]),
-      difficulty: textFromSelectors([".difficulty", "[class*='difficulty']"]),
+      difficulty: textFromSelectors([".difficulty", "[class*='difficulty']"]) || inferAtCoderDifficulty(location.href, title),
       runtime: metricFromPage(/(?:exec\s*time|time)\s*:?\s*([.\d]+\s*(?:ms|s))/i),
       memory: metricFromPage(/memory\s*:?\s*([.\d]+\s*(?:mb|kb|gb))/i),
       description: textFromSelectors(["#task-statement", ".lang-en", ".part"]),
@@ -470,15 +477,68 @@
 
   function extractCodingNinjas() {
     return {
-      accepted: pageHasAcceptedText(["[class*='accepted']", "[class*='success']", "[class*='passed']", "[class*='correct']"]),
-      title: textFromSelectors(["[class*='problem-title']", "[class*='ProblemTitle']", "h1", "h2"]),
+      accepted: pageHasAcceptedText(["[class*='accepted']", "[class*='success']", "[class*='passed']", "[class*='correct']", "[class*='status']"]),
+      title: textFromSelectors(["[class*='problem-title']", "[class*='ProblemTitle']", "h1", "h2", "h3"]),
       language: textFromSelectors(["[class*='language']", "select option:checked", "button[aria-haspopup='listbox']"]),
       sourceCode: codeFromMonaco() || codeFromCodeMirror() || codeFromAce() || codeFromSelectors(["pre", "code", "textarea"]),
       topics: topicsFromSelectors(["[class*='tag']", "[class*='topic']", "[class*='category']"]),
       difficulty: textFromSelectors(["[class*='difficulty']", "[class*='level']"]),
       runtime: metricFromPage(/runtime\s*:?\s*([.\d]+\s*(?:ms|s))/i),
       memory: metricFromPage(/memory\s*:?\s*([.\d]+\s*(?:mb|kb|gb))/i),
-      description: textFromSelectors(["[class*='problem-statement']", "[class*='description']", "[class*='ProblemStatement']"]),
+      description: textFromSelectors(["[class*='problem-statement']", "[class*='description']", "[class*='ProblemStatement']", "article"]),
+      problemUrl: canonicalUrl()
+    };
+  }
+
+  function extractLintCode() {
+    return {
+      accepted: pageHasAcceptedText([
+        ".verdict-accepted",
+        "[class*='accepted']",
+        "[class*='success']",
+        "[class*='passed']",
+        "[class*='VerdictAccepted']"
+      ]) || /\baccepted\b|\bac\b/i.test(document.body.innerText),
+      title: textFromSelectors([
+        ".problem-title",
+        ".problem-detail-title",
+        "[class*='title']",
+        "h1",
+        "h2",
+        "h3"
+      ]),
+      language: textFromSelectors([
+        ".language-select select option:checked",
+        "[class*='language']",
+        "select option:checked",
+        "[aria-haspopup='listbox']"
+      ]),
+      sourceCode: codeFromMonaco() || codeFromCodeMirror() || codeFromAce() || codeFromSelectors([
+        "pre",
+        "code",
+        "textarea"
+      ]),
+      topics: topicsFromSelectors([
+        "[class*='tag']",
+        "[class*='topic']",
+        "a[href*='/tag/']",
+        "a[href*='/problem/']"
+      ]),
+      difficulty: textFromSelectors([
+        ".difficulty",
+        "[class*='difficulty']",
+        "[class*='Difficulty']",
+        ".level"
+      ]),
+      runtime: metricFromPage(/(?:exec\s*time|time)\s*:?\s*([.\d]+\s*(?:ms|s))/i),
+      memory: metricFromPage(/memory\s*:?\s*([.\d]+\s*(?:mb|kb|gb))/i),
+      description: textFromSelectors([
+        ".problem-description",
+        ".problem-detail-description",
+        "article",
+        "[class*='description']",
+        "[class*='content']"
+      ]),
       problemUrl: canonicalUrl()
     };
   }
@@ -514,13 +574,14 @@
   }
 
   function extractCses() {
+    const topics = topicsFromSelectors([".nav a", ".breadcrumb a"]);
     return {
       accepted: pageHasAcceptedText([".task-score", ".status", ".summary", ".content"]) && /\baccepted\b|\b100\b/i.test(document.body.innerText),
       title: textFromSelectors([".title-block h1", ".content h1", "h1"]),
       language: textFromSelectors(["select[name='lang'] option:checked", "select option:checked"]),
       sourceCode: codeFromCodeMirror() || codeFromAce() || codeFromSelectors(["textarea", "pre", "code"]),
-      topics: topicsFromSelectors([".nav a", ".breadcrumb a"]),
-      difficulty: "Unknown",
+      topics,
+      difficulty: inferCsesDifficulty(topics),
       runtime: metricFromPage(/time\s*limit\s*:?\s*([.\d]+\s*s)/i),
       memory: metricFromPage(/memory\s*limit\s*:?\s*([.\d]+\s*(?:mb|kb|gb))/i),
       description: textFromSelectors([".content", ".md", "article"]),
@@ -794,5 +855,50 @@
       hash = ((hash << 5) - hash + value.charCodeAt(index)) | 0;
     }
     return Math.abs(hash).toString(36);
+  }
+
+  function inferCodeforcesDifficulty() {
+    const tags = Array.from(document.querySelectorAll(".tag-box, .roundbox .tag, a[href*='/problemset/tags/']"))
+      .map(node => node.textContent || node.innerText || "");
+    for (const tag of tags) {
+      const match = tag.match(/\*?(\d{3,4})/);
+      if (match) {
+        return match[1];
+      }
+    }
+    return "Unknown";
+  }
+
+  function inferAtCoderDifficulty(url, title) {
+    const text = `${url} ${title}`.toLowerCase();
+    const taskMatch = text.match(/_([a-h])\b/) || text.match(/\b([a-h])\s*[-.]/);
+    if (taskMatch) {
+      const task = taskMatch[1];
+      if (task === "a" || task === "b") return "Easy";
+      if (task === "c" || task === "d") return "Medium";
+      return "Hard";
+    }
+    if (text.includes("arc")) {
+      const arcMatch = text.match(/_([a-f])\b/) || text.match(/\b([a-f])\s*[-.]/);
+      if (arcMatch) {
+        const task = arcMatch[1];
+        if (task === "a") return "Medium";
+        return "Hard";
+      }
+    }
+    if (text.includes("agc")) {
+      return "Hard";
+    }
+    return "Unknown";
+  }
+
+  function inferCsesDifficulty(topics) {
+    const topicText = (topics || []).join(" ").toLowerCase();
+    if (topicText.includes("introductory")) return "Easy";
+    if (topicText.includes("sorting") || topicText.includes("searching") || topicText.includes("math")) return "Medium";
+    if (topicText.includes("dynamic") || topicText.includes("graph") || topicText.includes("tree") || topicText.includes("range")) return "Medium";
+    if (topicText.includes("geometry") || topicText.includes("string")) return "Medium";
+    if (topicText.includes("advanced") || topicText.includes("additional")) return "Hard";
+    return "Unknown";
   }
 })();
