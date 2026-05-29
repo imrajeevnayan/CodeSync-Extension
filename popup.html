@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CodeSync</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="header">
+        <div>
+          <h1>CodeSync</h1>
+          <p>Sync accepted submissions to GitHub.</p>
+        </div>
+        <span id="statusBadge" class="badge">Not configured</span>
+      </header>
+
+      <form id="settingsForm" class="form">
+        <section class="auth-panel" aria-label="GitHub authentication">
+          <div>
+            <span class="section-label">GitHub account</span>
+            <strong id="githubAccount">Not connected</strong>
+          </div>
+          <div class="auth-actions">
+            <button id="loginButton" class="primary" type="button">Login with GitHub</button>
+            <button id="logoutButton" class="secondary hidden" type="button">Logout</button>
+          </div>
+        </section>
+
+        <label class="field">
+          <span>Choose repository</span>
+          <div class="inline-row">
+            <select id="repositorySelect">
+              <option value="">Login to load repositories</option>
+            </select>
+            <button id="refreshReposButton" class="secondary icon-button" type="button" title="Refresh repositories">Refresh</button>
+          </div>
+        </label>
+
+        <section class="create-panel" aria-label="Create GitHub repository">
+          <span class="section-label">Create new repository</span>
+          <div class="inline-row">
+            <input id="newRepositoryName" type="text" autocomplete="off" spellcheck="false" placeholder="codesync-solutions">
+            <button id="createRepoButton" class="secondary" type="button">Create</button>
+          </div>
+        </section>
+
+        <p id="message" class="message" role="status" aria-live="polite"></p>
+        <input id="repository" type="hidden">
+      </form>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

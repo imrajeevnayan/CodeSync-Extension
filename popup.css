@@ -1,0 +1,206 @@
+:root {
+  color-scheme: light;
+  --bg: #f7f8fb;
+  --panel: #ffffff;
+  --text: #172033;
+  --muted: #647084;
+  --border: #d9dee8;
+  --accent: #0f766e;
+  --accent-dark: #115e59;
+  --danger: #b42318;
+  --success-bg: #e7f6ee;
+  --success: #17663a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  width: 380px;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.shell {
+  padding: 18px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 750;
+  letter-spacing: 0;
+}
+
+p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.badge {
+  flex: 0 0 auto;
+  max-width: 130px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.badge.ready {
+  border-color: #b9e2c9;
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.form {
+  display: grid;
+  gap: 12px;
+}
+
+.auth-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.section-label {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  margin-bottom: 3px;
+}
+
+#githubAccount {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.auth-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.hidden {
+  display: none;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field span {
+  color: #374151;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+input,
+select {
+  width: 100%;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  padding: 0 10px;
+  font: inherit;
+  outline: none;
+}
+
+select {
+  appearance: none;
+}
+
+input:focus,
+select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.16);
+}
+
+.create-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.inline-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.icon-button {
+  min-width: 78px;
+  padding: 0 10px;
+}
+
+.message {
+  min-height: 20px;
+  margin: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.message.error {
+  color: var(--danger);
+}
+
+.message.success {
+  color: var(--success);
+}
+
+button {
+  height: 38px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.primary {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--accent-dark);
+}
+
+.secondary {
+  border-color: var(--border);
+  background: var(--panel);
+  color: var(--text);
+}
+
+.secondary:hover:not(:disabled) {
+  border-color: #aeb7c8;
+}

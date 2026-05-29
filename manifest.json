@@ -1,0 +1,75 @@
+{
+  "manifest_version": 3,
+  "name": "CodeSync",
+  "version": "1.0.0",
+  "description": "Automatically sync accepted coding platform submissions to a GitHub repository.",
+  "permissions": [
+    "storage",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://api.github.com/*",
+    "https://github.com/login/oauth/*",
+    "https://leetcode.com/*",
+    "https://www.hackerrank.com/*",
+    "https://app.codesignal.com/*",
+    "https://codesignal.com/*",
+    "https://www.interviewbit.com/*",
+    "https://www.algoexpert.io/*",
+    "https://codeforces.com/*",
+    "https://atcoder.jp/*",
+    "https://www.codechef.com/*",
+    "https://arena.topcoder.com/*",
+    "https://www.topcoder.com/*",
+    "https://www.spoj.com/*",
+    "https://practice.geeksforgeeks.org/*",
+    "https://www.geeksforgeeks.org/*",
+    "https://exercism.org/*",
+    "https://www.codingninjas.com/*",
+    "https://codingninjas.com/*",
+    "https://neetcode.io/*",
+    "https://binarysearch.com/*",
+    "https://cses.fi/*",
+    "https://onlinejudge.org/*",
+    "https://uva.onlinejudge.org/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://leetcode.com/*",
+        "https://www.hackerrank.com/*",
+        "https://app.codesignal.com/*",
+        "https://codesignal.com/*",
+        "https://www.interviewbit.com/*",
+        "https://www.algoexpert.io/*",
+        "https://codeforces.com/*",
+        "https://atcoder.jp/*",
+        "https://www.codechef.com/*",
+        "https://arena.topcoder.com/*",
+        "https://www.topcoder.com/*",
+        "https://www.spoj.com/*",
+        "https://practice.geeksforgeeks.org/*",
+        "https://www.geeksforgeeks.org/*",
+        "https://exercism.org/*",
+        "https://www.codingninjas.com/*",
+        "https://codingninjas.com/*",
+        "https://neetcode.io/*",
+        "https://binarysearch.com/*",
+        "https://cses.fi/*",
+        "https://onlinejudge.org/*",
+        "https://uva.onlinejudge.org/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "CodeSync",
+    "default_popup": "popup.html"
+  }
+}
