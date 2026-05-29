@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CodeSync GitHub Login</title>
+    <link rel="stylesheet" href="auth.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="panel">
+        <p class="eyebrow">CodeSync</p>
+        <h1>Complete GitHub Login</h1>
+        <p class="copy">Copy this code, then open GitHub and paste it when asked.</p>
+        <div id="codeBox" class="code-box">Loading...</div>
+        <div class="actions">
+          <button id="copyButton" type="button">Copy Code</button>
+          <button id="openButton" type="button">Open GitHub</button>
+        </div>
+        <p id="message" class="message" role="status" aria-live="polite"></p>
+      </section>
+    </main>
+    <script src="auth.js"></script>
+  </body>
+</html>

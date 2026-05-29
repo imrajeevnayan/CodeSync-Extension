@@ -116,10 +116,11 @@ async function startGitHubAuth() {
   await setLocalStorage({ codesyncAuthState: authState });
   scheduleAuthPoll(intervalSeconds);
 
-  chrome.tabs.create({ url: authState.verificationUrl }, () => {
+  const authPageUrl = chrome.runtime.getURL("auth.html");
+  chrome.tabs.create({ url: authPageUrl }, () => {
     const error = chrome.runtime.lastError;
     if (error) {
-      console.warn("CodeSync could not open GitHub login tab:", error.message);
+      console.warn("CodeSync could not open GitHub login helper tab:", error.message);
     }
   });
 
