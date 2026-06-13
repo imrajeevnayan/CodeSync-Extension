@@ -197,7 +197,11 @@
       markSubmitted(duplicateKey);
       console.info("CodeSync submission sent:", reason, submission.title);
     } catch (error) {
-      console.warn("CodeSync extraction failed:", error);
+      if (error?.message?.includes("Extension context invalidated") || !chrome.runtime?.id) {
+        console.info("CodeSync: Extension was reloaded or updated. Please refresh the page to resume syncing.");
+      } else {
+        console.warn("CodeSync extraction failed:", error);
+      }
     } finally {
       clearPendingSubmissions();
     }
@@ -236,24 +240,31 @@
   }
 
   async function sendSubmission(submission) {
+    if (!chrome.runtime?.id) {
+      throw new Error("Extension context invalidated. Please refresh the page.");
+    }
     return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage({
-        type: "CODESYNC_SUBMISSION",
-        payload: submission
-      }, (response) => {
-        const error = chrome.runtime.lastError;
-        if (error) {
-          reject(new Error(error.message));
-          return;
-        }
+      try {
+        chrome.runtime.sendMessage({
+          type: "CODESYNC_SUBMISSION",
+          payload: submission
+        }, (response) => {
+          const error = chrome.runtime.lastError;
+          if (error) {
+            reject(new Error(error.message));
+            return;
+          }
 
-        if (!response?.ok) {
-          reject(new Error(response?.error || "Background sync failed."));
-          return;
-        }
+          if (!response?.ok) {
+            reject(new Error(response?.error || "Background sync failed."));
+            return;
+          }
 
-        resolve(response.result);
-      });
+          resolve(response.result);
+        });
+      } catch (e) {
+        reject(e);
+      }
     });
   }
 
