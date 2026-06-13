@@ -464,6 +464,22 @@
         ) {
           return true;
         }
+
+        // Check if inside iframe and parent is GfG-160
+        if (window.parent !== window) {
+          try {
+            const parentUrl = window.parent.location.href.toLowerCase();
+            if (parentUrl.includes("gfg160") || parentUrl.includes("gfg-160") || parentUrl.includes("160-days")) {
+              return true;
+            }
+          } catch (e) {
+            const referrer = document.referrer.toLowerCase();
+            if (referrer.includes("gfg160") || referrer.includes("gfg-160") || referrer.includes("160-days")) {
+              return true;
+            }
+          }
+        }
+
         const bodyText = document.body?.innerText || "";
         if (
           bodyText.includes("GFG 160") ||
@@ -480,15 +496,52 @@
     })();
 
     return {
-      accepted: pageHasAcceptedText([".problems_success", ".success", "[class*='accepted']", "[class*='correct']"]),
-      title: textFromSelectors([".problems_header_content__title", ".problem-tab h3", "h1", "h2"]),
-      language: textFromSelectors([".problems_language_dropdown__button", "[class*='language']", "select option:checked"]),
+      accepted: pageHasAcceptedText([
+        ".problems_success",
+        ".success",
+        "[class*='accepted']",
+        "[class*='correct']",
+        "[class*='Success']",
+        "[class*='Correct']"
+      ]),
+      title: textFromSelectors([
+        ".problems_header_content__title",
+        "[class*='problem-title']",
+        "[class*='ProblemTitle']",
+        ".problem-tab h3",
+        "h1",
+        "h2",
+        "h3"
+      ]),
+      language: textFromSelectors([
+        ".problems_language_dropdown__button",
+        "[class*='language']",
+        "[class*='Language']",
+        "select option:checked"
+      ]),
       sourceCode: codeFromMonaco() || codeFromCodeMirror() || codeFromAce() || codeFromSelectors(["pre", "code", "textarea"]),
-      topics: topicsFromSelectors([".problems_tag_container__2h0ZK", ".problem-tags a", "a[href*='/tag/']", "[class*='tag']"]),
-      difficulty: textFromSelectors([".problems_problem_difficulty__3M8RS", "[class*='difficulty']", "[class*='Difficulty']"]),
+      topics: topicsFromSelectors([
+        ".problems_tag_container__2h0ZK",
+        ".problem-tags a",
+        "a[href*='/tag/']",
+        "[class*='tag']",
+        "[class*='Tag']"
+      ]),
+      difficulty: textFromSelectors([
+        ".problems_problem_difficulty__3M8RS",
+        "[class*='difficulty']",
+        "[class*='Difficulty']",
+        "[class*='level']"
+      ]),
       runtime: metricFromPage(/runtime\s*:?\s*([.\d]+\s*(?:ms|s))/i),
       memory: metricFromPage(/memory\s*:?\s*([.\d]+\s*(?:mb|kb|gb))/i),
-      description: textFromSelectors([".problems_problem_content__Xm_eO", ".problem-statement", "[class*='problemContent']"]),
+      description: textFromSelectors([
+        ".problems_problem_content__Xm_eO",
+        ".problem-statement",
+        "[class*='problemContent']",
+        "[class*='description']",
+        "article"
+      ]),
       problemUrl: canonicalUrl(),
       isGfg160
     };
