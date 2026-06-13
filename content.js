@@ -230,7 +230,8 @@
       difficulty: cleanText(extracted.difficulty || getGenericDifficulty()),
       sourceCode,
       description: cleanDescription(extracted.description || getGenericDescription()),
-      detectedAt: new Date().toISOString()
+      detectedAt: new Date().toISOString(),
+      isGfg160: extracted.isGfg160 || false
     };
   }
 
@@ -446,6 +447,38 @@
   }
 
   function extractGeeksforGeeks() {
+    const isGfg160 = (() => {
+      try {
+        const url = new URL(location.href);
+        const utmCampaign = url.searchParams.get("utm_campaign") || "";
+        const utmSource = url.searchParams.get("utm_source") || "";
+        if (
+          utmCampaign.toLowerCase().includes("gfg160") ||
+          utmCampaign.toLowerCase().includes("gfg-160") ||
+          utmSource.toLowerCase().includes("gfg160") ||
+          utmSource.toLowerCase().includes("gfg-160") ||
+          url.pathname.includes("gfg-160") ||
+          location.href.toLowerCase().includes("gfg160") ||
+          location.href.toLowerCase().includes("gfg-160") ||
+          location.href.toLowerCase().includes("160-days")
+        ) {
+          return true;
+        }
+        const bodyText = document.body?.innerText || "";
+        if (
+          bodyText.includes("GFG 160") ||
+          bodyText.includes("gfg-160") ||
+          bodyText.includes("160 Days of Problem Solving") ||
+          bodyText.includes("160-Days-of-Problem-Solving") ||
+          document.querySelector("a[href*='gfg-160']") !== null ||
+          document.querySelector("a[href*='gfg160']") !== null
+        ) {
+          return true;
+        }
+      } catch (e) {}
+      return false;
+    })();
+
     return {
       accepted: pageHasAcceptedText([".problems_success", ".success", "[class*='accepted']", "[class*='correct']"]),
       title: textFromSelectors([".problems_header_content__title", ".problem-tab h3", "h1", "h2"]),
@@ -456,7 +489,8 @@
       runtime: metricFromPage(/runtime\s*:?\s*([.\d]+\s*(?:ms|s))/i),
       memory: metricFromPage(/memory\s*:?\s*([.\d]+\s*(?:mb|kb|gb))/i),
       description: textFromSelectors([".problems_problem_content__Xm_eO", ".problem-statement", "[class*='problemContent']"]),
-      problemUrl: canonicalUrl()
+      problemUrl: canonicalUrl(),
+      isGfg160
     };
   }
 

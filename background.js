@@ -332,20 +332,23 @@ function normalizeSubmission(rawSubmission, sender) {
     difficulty: normalizeDifficulty(rawSubmission.difficulty),
     sourceCode,
     description: cleanText(rawSubmission.description),
-    detectedAt
+    detectedAt,
+    isGfg160: !!rawSubmission.isGfg160
   };
 }
 
 function buildSubmissionBasePaths(submission, settings) {
   const baseFolder = settings.baseFolder || DEFAULT_SETTINGS.baseFolder;
-  const platform = sanitizePathPart(submission.platform);
+  const platform = submission.isGfg160
+    ? "GfG-160-160-Days-of-Problem-Solving"
+    : sanitizePathPart(submission.platform);
   const difficulty = sanitizePathPart(submission.difficulty).toLowerCase(); // e.g. easy, medium, hard, unknown
   const problemTitle = sanitizePathPart(submission.title);
 
   if (cleanText(settings.folderConvention)) {
     const values = {
       baseFolder: baseFolder,
-      platform: submission.platform,
+      platform: platform,
       difficulty: submission.difficulty,
       language: displayLanguage(submission.language),
       problemTitle: submission.title,
@@ -358,6 +361,15 @@ function buildSubmissionBasePaths(submission, settings) {
   const paths = [];
   const topics = normalizeTopics(submission.topics);
   const topicFolders = topics.map((t) => normalizeTopicFolderName(t));
+
+  if (submission.isGfg160) {
+    // Add direct path: [baseFolder]/GfG-160-160-Days-of-Problem-Solving/[problemTitle]
+    paths.push(joinPath(
+      ...sanitizePath(baseFolder),
+      "GfG-160-160-Days-of-Problem-Solving",
+      problemTitle
+    ));
+  }
 
   // Sync to topic folders (up to 3 topics to avoid rate limits)
   const syncTopics = topicFolders.slice(0, 3);
