@@ -35,10 +35,19 @@ const SUPPORTED_SHEETS = {
   "HeapMastery": { name: "Heap Mastery Sheet", total: 22 }
 };
 
-// Inverted index for O(1) sheet lookups
-// Key: 'platform:slug'
 const SHEET_MAPPING_INDEX = {
   // LeetCode Arrays & Hashing
+  "leetcode:set-matrix-zeroes": ["StriverSDE", "StriverA2Z", "AlgoMaster300", "LoveBabbar450"],
+  "leetcode:pascals-triangle": ["StriverSDE", "StriverA2Z", "AlgoMaster300"],
+  "leetcode:next-permutation": ["StriverSDE", "StriverA2Z", "AlgoMaster300", "LoveBabbar450"],
+  "leetcode:rotate-image": ["StriverSDE", "StriverA2Z", "AlgoMaster300", "LoveBabbar450"],
+  "leetcode:merge-intervals": ["StriverSDE", "StriverA2Z", "AlgoMaster300", "LoveBabbar450"],
+  "leetcode:merge-sorted-array": ["StriverSDE", "StriverA2Z", "AlgoMaster300"],
+  "leetcode:find-the-duplicate-number": ["StriverSDE", "StriverA2Z", "AlgoMaster300"],
+  "leetcode:powx-n": ["StriverSDE", "StriverA2Z", "AlgoMaster300"],
+  "leetcode:majority-element-ii": ["StriverSDE", "StriverA2Z", "AlgoMaster300"],
+  "leetcode:reverse-pairs": ["StriverSDE", "StriverA2Z", "AlgoMaster300"],
+  "leetcode:4sum": ["StriverSDE", "StriverA2Z", "AlgoMaster300"],
   "leetcode:two-sum": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "NishantChahar151", "KushalVijay20", "ApnaCollege375", "FrazBhaiya", "AlgoMaster75", "SixComp30Days", "Striver79", "AtharvaPatil150", "StriverSDE"],
   "leetcode:valid-parentheses": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "NishantChahar151", "KushalVijay20", "ApnaCollege375", "FrazBhaiya", "AlgoMaster75", "SixComp30Days", "Striver79", "AtharvaPatil150", "StriverSDE"],
   "leetcode:merge-two-sorted-lists": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "NishantChahar151", "ApnaCollege375", "FrazBhaiya", "AlgoMaster75", "SixComp30Days", "Striver79", "AtharvaPatil150", "StriverSDE"],
