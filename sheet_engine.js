@@ -11,6 +11,7 @@ const SUPPORTED_SHEETS = {
   "Top100Liked": { name: "Top 100 Liked", total: 100 },
   "SQL50": { name: "SQL 50", total: 50 },
   "StriverA2Z": { name: "Striver A2Z DSA", total: 450 },
+  "StriverSDE": { name: "Striver SDE Sheet", total: 180 },
   "LoveBabbar450": { name: "Love Babbar 450", total: 450 },
   "CoderArmy": { name: "Coder Army DSA", total: 350 },
   "GFG160": { name: "GFG 160", total: 160 },
@@ -30,10 +31,10 @@ const SUPPORTED_SHEETS = {
 // Key: 'platform:slug'
 const SHEET_MAPPING_INDEX = {
   // LeetCode Arrays & Hashing
-  "leetcode:two-sum": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "NishantChahar151", "KushalVijay20", "ApnaCollege375", "FrazBhaiya", "AlgoMaster75", "SixComp30Days", "Striver79", "AtharvaPatil150"],
-  "leetcode:valid-parentheses": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "NishantChahar151", "KushalVijay20", "ApnaCollege375", "FrazBhaiya", "AlgoMaster75", "SixComp30Days", "Striver79", "AtharvaPatil150"],
-  "leetcode:merge-two-sorted-lists": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "NishantChahar151", "ApnaCollege375", "FrazBhaiya", "AlgoMaster75", "SixComp30Days", "Striver79", "AtharvaPatil150"],
-  "leetcode:best-time-to-buy-and-sell-stock": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "NishantChahar151", "KushalVijay20", "ApnaCollege375", "FrazBhaiya", "AlgoMaster75", "SixComp30Days", "Striver79", "AtharvaPatil150"],
+  "leetcode:two-sum": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "NishantChahar151", "KushalVijay20", "ApnaCollege375", "FrazBhaiya", "AlgoMaster75", "SixComp30Days", "Striver79", "AtharvaPatil150", "StriverSDE"],
+  "leetcode:valid-parentheses": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "NishantChahar151", "KushalVijay20", "ApnaCollege375", "FrazBhaiya", "AlgoMaster75", "SixComp30Days", "Striver79", "AtharvaPatil150", "StriverSDE"],
+  "leetcode:merge-two-sorted-lists": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "NishantChahar151", "ApnaCollege375", "FrazBhaiya", "AlgoMaster75", "SixComp30Days", "Striver79", "AtharvaPatil150", "StriverSDE"],
+  "leetcode:best-time-to-buy-and-sell-stock": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "NishantChahar151", "KushalVijay20", "ApnaCollege375", "FrazBhaiya", "AlgoMaster75", "SixComp30Days", "Striver79", "AtharvaPatil150", "StriverSDE"],
   "leetcode:valid-palindrome": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150", "StriverA2Z", "NishantChahar151", "ApnaCollege375", "FrazBhaiya", "AlgoMaster75", "SixComp30Days", "Striver79", "AtharvaPatil150"],
   "leetcode:invert-binary-tree": ["Blind75", "Grind75", "Grind169", "NeetCode150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "NishantChahar151", "ApnaCollege375", "FrazBhaiya", "AlgoMaster75", "Striver79", "AtharvaPatil150"],
   "leetcode:valid-anagram": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "StriverA2Z", "NishantChahar151", "ApnaCollege375", "FrazBhaiya", "AlgoMaster75", "Striver79", "AtharvaPatil150"],
@@ -41,102 +42,102 @@ const SHEET_MAPPING_INDEX = {
   "leetcode:flood-fill": ["Blind75", "Grind75", "Grind169", "NeetCode150", "StriverA2Z"],
   "leetcode:lowest-common-ancestor-of-a-binary-search-tree": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150", "StriverA2Z", "LoveBabbar450"],
   "leetcode:balanced-binary-tree": ["Blind75", "Grind75", "Grind169", "NeetCode150", "StriverA2Z"],
-  "leetcode:linked-list-cycle": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450"],
+  "leetcode:linked-list-cycle": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "StriverSDE"],
   "leetcode:implement-queue-using-stacks": ["Blind75", "Grind75", "Grind169", "NeetCode150", "StriverA2Z", "LoveBabbar450"],
   "leetcode:first-bad-version": ["Grind75", "Grind169", "StriverA2Z"],
   "leetcode:ransom-note": ["Grind75", "Grind169", "TopInterview150"],
-  "leetcode:climbing-stairs": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450"],
+  "leetcode:climbing-stairs": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "StriverSDE"],
   "leetcode:longest-palindrome": ["Grind75", "Grind169"],
-  "leetcode:reverse-linked-list": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450"],
+  "leetcode:reverse-linked-list": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "StriverSDE"],
   "leetcode:majority-element": ["Grind75", "Grind169", "TopInterview150", "Top100Liked", "StriverA2Z"],
   "leetcode:add-binary": ["Grind75", "Grind169", "TopInterview150"],
   "leetcode:diameter-of-binary-tree": ["Grind75", "Grind169", "NeetCode150", "Top100Liked", "StriverA2Z"],
   "leetcode:middle-of-the-linked-list": ["Grind75", "Grind169", "StriverA2Z"],
   "leetcode:maximum-depth-of-binary-tree": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z"],
   "leetcode:contains-duplicate": ["Blind75", "Grind75", "Grind169", "NeetCode150", "StriverA2Z"],
-  "leetcode:maximum-subarray": ["Blind75", "Grind169", "NeetCode150", "Top100Liked", "StriverA2Z", "LoveBabbar450"],
+  "leetcode:maximum-subarray": ["Blind75", "Grind169", "NeetCode150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "StriverSDE"],
   "leetcode:insert-interval": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450"],
   "leetcode:01-matrix": ["Blind75", "Grind75", "Grind169", "NeetCode150"],
   "leetcode:k-closest-points-to-origin": ["Blind75", "Grind75", "Grind169", "NeetCode150"],
-  "leetcode:longest-substring-without-repeating-characters": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450"],
-  "leetcode:3sum": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450"],
+  "leetcode:longest-substring-without-repeating-characters": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "StriverSDE"],
+  "leetcode:3sum": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "StriverSDE"],
   "leetcode:binary-tree-level-order-traversal": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450"],
-  "leetcode:clone-graph": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150", "StriverA2Z", "LoveBabbar450"],
+  "leetcode:clone-graph": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150", "StriverA2Z", "LoveBabbar450", "StriverSDE"],
   "leetcode:evaluate-reverse-polish-notation": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150"],
-  "leetcode:course-schedule": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450"],
-  "leetcode:implement-trie-prefix-tree": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450"],
-  "leetcode:coin-change": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450"],
+  "leetcode:course-schedule": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "StriverSDE"],
+  "leetcode:implement-trie-prefix-tree": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "StriverSDE"],
+  "leetcode:coin-change": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "StriverSDE"],
   "leetcode:product-of-array-except-self": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450"],
   "leetcode:min-stack": ["Blind75", "Grind169", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450"],
-  "leetcode:group-anagrams": ["Blind75", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z"],
+  "leetcode:group-anagrams": ["Blind75", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "StriverSDE"],
   "leetcode:top-k-frequent-elements": ["Blind75", "NeetCode150", "Top100Liked", "StriverA2Z"],
   "leetcode:encode-and-decode-strings": ["Blind75", "NeetCode150"],
-  "leetcode:longest-consecutive-sequence": ["Blind75", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z"],
+  "leetcode:longest-consecutive-sequence": ["Blind75", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "StriverSDE"],
   
   // Two Pointers
   "leetcode:two-sum-ii-input-array-is-sorted": ["NeetCode150", "TopInterview150", "StriverA2Z"],
   "leetcode:3sum-closest": ["TopInterview150", "StriverA2Z"],
   "leetcode:container-with-most-water": ["Blind75", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z"],
-  "leetcode:trapping-rain-water": ["NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z"],
-
+  "leetcode:trapping-rain-water": ["NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "StriverSDE"],
+ 
   // Sliding Window
   "leetcode:best-time-to-buy-and-sell-stock-ii": ["TopInterview150", "StriverA2Z"],
-  "leetcode:longest-repeating-character-replacement": ["Blind75", "NeetCode150", "StriverA2Z"],
+  "leetcode:longest-repeating-character-replacement": ["Blind75", "NeetCode150", "StriverA2Z", "StriverSDE"],
   "leetcode:permutation-in-string": ["NeetCode150"],
-  "leetcode:minimum-window-substring": ["Blind75", "NeetCode150", "TopInterview150", "StriverA2Z"],
+  "leetcode:minimum-window-substring": ["Blind75", "NeetCode150", "TopInterview150", "StriverA2Z", "StriverSDE"],
   "leetcode:sliding-window-maximum": ["NeetCode150", "Top100Liked", "StriverA2Z"],
-
+ 
   // Stack & Monotonic
   "leetcode:valid-sudoku": ["NeetCode150", "TopInterview150"],
   "leetcode:daily-temperatures": ["NeetCode150", "Top100Liked"],
   "leetcode:car-fleet": ["NeetCode150"],
-  "leetcode:largest-rectangle-in-histogram": ["NeetCode150", "Top100Liked", "StriverA2Z"],
-
+  "leetcode:largest-rectangle-in-histogram": ["NeetCode150", "Top100Liked", "StriverA2Z", "StriverSDE"],
+ 
   // Binary Search
   "leetcode:search-a-2d-matrix": ["NeetCode150", "TopInterview150", "StriverA2Z"],
   "leetcode:koko-eating-bananas": ["NeetCode150", "StriverA2Z"],
   "leetcode:find-minimum-in-rotated-sorted-array": ["Blind75", "NeetCode150", "TopInterview150", "StriverA2Z"],
-  "leetcode:search-in-rotated-sorted-array": ["Blind75", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z"],
+  "leetcode:search-in-rotated-sorted-array": ["Blind75", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "StriverSDE"],
   "leetcode:median-of-two-sorted-arrays": ["NeetCode150", "Top100Liked", "StriverA2Z"],
-
+ 
   // Linked List
-  "leetcode:remove-nth-node-from-end-of-list": ["Blind75", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z"],
-  "leetcode:copy-list-with-random-pointer": ["NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z"],
-  "leetcode:add-two-numbers": ["NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z"],
-  "leetcode:merge-k-sorted-lists": ["Blind75", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z"],
-  "leetcode:reverse-nodes-in-k-group": ["NeetCode150", "Top100Liked", "StriverA2Z"],
-
+  "leetcode:remove-nth-node-from-end-of-list": ["Blind75", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "StriverSDE"],
+  "leetcode:copy-list-with-random-pointer": ["NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "StriverSDE"],
+  "leetcode:add-two-numbers": ["NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "StriverSDE"],
+  "leetcode:merge-k-sorted-lists": ["Blind75", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "StriverSDE"],
+  "leetcode:reverse-nodes-in-k-group": ["NeetCode150", "Top100Liked", "StriverA2Z", "StriverSDE"],
+ 
   // Trees
   "leetcode:same-tree": ["Blind75", "NeetCode150", "TopInterview150", "StriverA2Z"],
   "leetcode:subtree-of-another-tree": ["Blind75", "NeetCode150", "StriverA2Z"],
-  "leetcode:lowest-common-ancestor-of-a-binary-tree": ["NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z"],
+  "leetcode:lowest-common-ancestor-of-a-binary-tree": ["NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "StriverSDE"],
   "leetcode:binary-tree-right-side-view": ["NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z"],
   "leetcode:count-good-nodes-in-binary-tree": ["NeetCode150"],
-  "leetcode:validate-binary-search-tree": ["Blind75", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z"],
+  "leetcode:validate-binary-search-tree": ["Blind75", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "StriverSDE"],
   "leetcode:kth-smallest-element-in-a-bst": ["Blind75", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z"],
-  "leetcode:construct-binary-tree-from-preorder-and-inorder-traversal": ["Blind75", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z"],
+  "leetcode:construct-binary-tree-from-preorder-and-inorder-traversal": ["Blind75", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "StriverSDE"],
   "leetcode:binary-tree-maximum-path-sum": ["Blind75", "NeetCode150", "Top100Liked", "StriverA2Z"],
-  "leetcode:serialize-and-deserialize-binary-tree": ["Blind75", "NeetCode150", "Top100Liked", "StriverA2Z"],
-
+  "leetcode:serialize-and-deserialize-binary-tree": ["Blind75", "NeetCode150", "Top100Liked", "StriverA2Z", "StriverSDE"],
+ 
   // Dynamic Programming & Greedy
-  "leetcode:house-robber": ["Blind75", "Grind169", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z"],
+  "leetcode:house-robber": ["Blind75", "Grind169", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "StriverSDE"],
   "leetcode:house-robber-ii": ["Blind75", "NeetCode150", "StriverA2Z"],
-  "leetcode:longest-palindromic-substring": ["Blind75", "NeetCode150", "Top100Liked", "StriverA2Z"],
+  "leetcode:longest-palindromic-substring": ["Blind75", "NeetCode150", "Top100Liked", "StriverA2Z", "StriverSDE"],
   "leetcode:decode-ways": ["Blind75", "NeetCode150", "TopInterview150", "StriverA2Z"],
-  "leetcode:unique-paths": ["Blind75", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z"],
-  "leetcode:word-break": ["Blind75", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z"],
-  "leetcode:longest-increasing-subsequence": ["Blind75", "NeetCode150", "Top100Liked", "StriverA2Z"],
+  "leetcode:unique-paths": ["Blind75", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "StriverSDE"],
+  "leetcode:word-break": ["Blind75", "NeetCode150", "TopInterview150", "Top100Liked", "StriverA2Z", "StriverSDE"],
+  "leetcode:longest-increasing-subsequence": ["Blind75", "NeetCode150", "Top100Liked", "StriverA2Z", "StriverSDE"],
   
   // GeeksforGeeks Examples
-  "gfg:reverse-an-array": ["StriverA2Z", "LoveBabbar450", "GFG160"],
+  "gfg:reverse-an-array": ["StriverA2Z", "LoveBabbar450", "GFG160", "StriverSDE"],
   "gfg:find-minimum-and-maximum-element-in-an-array": ["StriverA2Z", "LoveBabbar450", "GFG160"],
-  "gfg:kth-smallest-element": ["LoveBabbar450", "StriverA2Z"],
-  "gfg:sort-an-array-of-0s-1s-and-2s": ["LoveBabbar450", "StriverA2Z", "GFG160"],
+  "gfg:kth-smallest-element": ["LoveBabbar450", "StriverA2Z", "StriverSDE"],
+  "gfg:sort-an-array-of-0s-1s-and-2s": ["LoveBabbar450", "StriverA2Z", "GFG160", "StriverSDE"],
   "gfg:move-all-negative-elements-to-end": ["LoveBabbar450", "CoderArmy"],
-  "gfg:union-of-two-arrays": ["LoveBabbar450", "StriverA2Z", "GFG160"],
+  "gfg:union-of-two-arrays": ["LoveBabbar450", "StriverA2Z", "GFG160", "StriverSDE"],
   "gfg:cyclically-rotate-an-array-by-one": ["LoveBabbar450", "GFG160"],
   "gfg:missing-number-in-array": ["StriverA2Z", "GFG160"],
-
+ 
   // CSES Examples
   "cses:weird-algorithm": ["CSESSet"],
   "cses:missing-number": ["CSESSet"],
@@ -144,13 +145,13 @@ const SHEET_MAPPING_INDEX = {
   "cses:increasing-array": ["CSESSet"],
   "cses:permutations": ["CSESSet"],
   "cses:number-spiral": ["CSESSet"],
-
+ 
   // InterviewBit Examples
   "interviewbit:max-sum-path": ["InterviewBitSet"],
   "interviewbit:min-steps-in-infinite-grid": ["InterviewBitSet"],
   "interviewbit:add-one-to-number": ["InterviewBitSet"],
   "interviewbit:max-non-negative-subarray": ["InterviewBitSet"],
-  "interviewbit:repeat-and-missing-number-array": ["InterviewBitSet", "LoveBabbar450", "StriverA2Z"]
+  "interviewbit:repeat-and-missing-number-array": ["InterviewBitSet", "LoveBabbar450", "StriverA2Z", "StriverSDE"]
 };
 
 // In-memory cache of compiled indices (combines custom + pre-compiled)

@@ -96,6 +96,7 @@ The following sheets are supported out-of-the-box:
 | 6 Companies 30 Days | 0 | 90 |
 | Striver 79 | 0 | 79 |
 | Atharva Patil 150 | 0 | 150 |
+| Striver SDE Sheet | 0 | 180 |
 
 ## Repository Structure
 
