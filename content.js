@@ -946,7 +946,7 @@
 
   function looksLikeCode(value) {
     const code = cleanCode(value);
-    return code.length > 20 && /[{}();=#<>]|\b(class|def|function|public|import|include|return|package|using|let|const|var|fn|impl|SELECT)\b/i.test(code);
+    return code.length > 5;
   }
 
   function hostIncludes(hostPart) {
