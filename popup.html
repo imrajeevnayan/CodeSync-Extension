@@ -94,27 +94,15 @@
         <!-- Auto Sheet Importer Card -->
         <div class="import-card">
           <h3>Auto Import Sheet</h3>
-          <p class="import-desc">Fetch solution folders from Striver, NeetCode or community repos to generate a custom tracking list.</p>
+          <p class="import-desc">Paste a sheet URL (e.g. from hynts.in) or a GitHub repository path to generate a custom tracking list.</p>
           <div class="inline-row">
-            <input id="importRepoUrl" type="text" placeholder="owner/repo-name" autocomplete="off" spellcheck="false">
+            <input id="importRepoUrl" type="text" placeholder="owner/repo or https://www.hynts.in/..." autocomplete="off" spellcheck="false">
             <button id="importBtn" class="primary" type="button">Import</button>
           </div>
           <div class="inline-row" style="margin-top: 6px;">
             <input id="importSheetName" type="text" placeholder="Custom Sheet Title (e.g. Striver A2Z)" autocomplete="off" spellcheck="false">
           </div>
           <div id="importMsg" class="message"></div>
-        </div>
-
-        <!-- Excel / URL List Importer Card -->
-        <div class="import-card" style="margin-top: 10px;">
-          <h3>Import from Excel / URL List</h3>
-          <p class="import-desc">Paste problem URLs (one per line) from Excel, CSV, or Codolio to create a custom tracking sheet.</p>
-          <textarea id="importUrlsText" placeholder="https://leetcode.com/problems/two-sum/&#10;https://practice.geeksforgeeks.org/problems/reverse-an-array" style="width: 100%; height: 60px; font-family: monospace; font-size: 11px; margin-bottom: 6px; border-radius: 4px; padding: 4px; resize: vertical; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: #fff; box-sizing: border-box;"></textarea>
-          <div class="inline-row">
-            <input id="importUrlSheetName" type="text" placeholder="Sheet Title (e.g. My Excel Sheet)" autocomplete="off" spellcheck="false">
-            <button id="importUrlsBtn" class="primary" type="button">Import List</button>
-          </div>
-          <div id="importUrlsMsg" class="message"></div>
         </div>
 
         <!-- Sheets Progress Grid -->

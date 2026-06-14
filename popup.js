@@ -51,11 +51,6 @@ const importSheetName = document.getElementById("importSheetName");
 const importBtn = document.getElementById("importBtn");
 const importMsg = document.getElementById("importMsg");
 
-const importUrlsText = document.getElementById("importUrlsText");
-const importUrlSheetName = document.getElementById("importUrlSheetName");
-const importUrlsBtn = document.getElementById("importUrlsBtn");
-const importUrlsMsg = document.getElementById("importUrlsMsg");
-
 const fields = {
   repository: document.getElementById("repository")
 };
@@ -81,7 +76,6 @@ logoutButton.addEventListener("click", logoutFromGitHub);
 refreshReposButton.addEventListener("click", refreshRepositories);
 createRepoButton.addEventListener("click", createRepository);
 importBtn.addEventListener("click", importCodingSheet);
-importUrlsBtn.addEventListener("click", importCodingSheetFromUrls);
 syncHistoryButton.addEventListener("click", syncRepositoryHistory);
 
 repositorySelect.addEventListener("change", () => {
@@ -240,34 +234,105 @@ async function loadSheetsView() {
 
 // GitHub sheet importer method
 async function importCodingSheet() {
-  const repo = importRepoUrl.value.trim();
+  const inputVal = importRepoUrl.value.trim();
   const name = importSheetName.value.trim();
 
-  if (!repo || !name) {
-    showImportMessage("Enter both repository path and sheet name.", "error");
+  if (!inputVal || !name) {
+    showImportMessage("Enter both sheet URL (or repo path) and sheet name.", "error");
     return;
   }
 
   importBtn.disabled = true;
-  showImportMessage("Fetching solution tree from GitHub...", "");
 
-  try {
-    const settings = await getStorage(DEFAULT_SETTINGS);
-    const sheet = await importSheetFromGitHub(repo, name, settings.githubToken);
-    
-    // Clear fields
-    importRepoUrl.value = "";
-    importSheetName.value = "";
+  // Check if the input is a URL
+  const isUrl = /^https?:\/\//i.test(inputVal);
 
-    showImportMessage(`Successfully imported ${sheet.problems.length} problems for "${name}"!`, "success");
-    
-    // Invalidate caches and reload sheets view
-    invalidateCompiledCache();
-    await loadSheetsView();
-  } catch (e) {
-    showImportMessage(e.message, "error");
-  } finally {
-    importBtn.disabled = false;
+  if (isUrl) {
+    showImportMessage("Fetching and parsing sheet content...", "");
+    try {
+      const response = await fetch(inputVal);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch sheet page: ${response.status} ${response.statusText}`);
+      }
+      let html = await response.text();
+      
+      // Clean escapes
+      html = html.replaceAll('\\u0026', '&').replaceAll('\\/', '/');
+
+      // Match all problem URLs
+      const urlRegex = /(https?:\/\/[^\s"'`\\<>{}]+)/g;
+      const matches = html.match(urlRegex) || [];
+      
+      const problems = [];
+      for (const url of matches) {
+        const cleanUrl = url.split('?')[0].split('#')[0].replace(/\\+$/, '').replace(/"$/, '').replace(/'$/, '').trim();
+        const parsed = parseProblemUrlOrSlug(cleanUrl);
+        if (parsed) {
+          problems.push(parsed);
+        }
+      }
+
+      const uniqueProbs = [...new Set(problems)];
+      if (uniqueProbs.length === 0) {
+        throw new Error("Could not extract any valid coding problem links from this URL.");
+      }
+
+      const sheet = {
+        sheetName: name,
+        problems: uniqueProbs
+      };
+
+      await saveCustomSheet(sheet);
+
+      // Auto-map existing submissions history to this new sheet
+      const submissions = await getAllSubmissions().catch(() => []);
+      let matchCount = 0;
+      
+      invalidateCompiledCache();
+      await compileInvertedIndex();
+      
+      const sheetId = `custom:${name.replace(/\s+/g, "_")}`;
+      for (const sub of submissions) {
+        const problemKey = `${sub.platform.toLowerCase()}:${sub.slug.toLowerCase()}`;
+        const resolvedSheets = getSheetsForProblem(sub.platform, sub.slug, sub.title);
+        if (resolvedSheets.includes(sheetId)) {
+          await markSolvedInProgress(sheetId, problemKey);
+          matchCount++;
+        }
+      }
+
+      // Clear fields
+      importRepoUrl.value = "";
+      importSheetName.value = "";
+
+      showImportMessage(`Successfully imported "${name}" with ${uniqueProbs.length} problems! Mapped ${matchCount} existing solved history.`, "success");
+      
+      invalidateCompiledCache();
+      await loadSheetsView();
+    } catch (e) {
+      showImportMessage(e.message, "error");
+    } finally {
+      importBtn.disabled = false;
+    }
+  } else {
+    showImportMessage("Fetching solution tree from GitHub...", "");
+    try {
+      const settings = await getStorage(DEFAULT_SETTINGS);
+      const sheet = await importSheetFromGitHub(inputVal, name, settings.githubToken);
+      
+      // Clear fields
+      importRepoUrl.value = "";
+      importSheetName.value = "";
+
+      showImportMessage(`Successfully imported ${sheet.problems.length} problems for "${name}"!`, "success");
+      
+      invalidateCompiledCache();
+      await loadSheetsView();
+    } catch (e) {
+      showImportMessage(e.message, "error");
+    } finally {
+      importBtn.disabled = false;
+    }
   }
 }
 
@@ -700,17 +765,6 @@ async function syncRepositoryHistory() {
   }
 }
 
-// Function to show Excel list import messages
-function showUrlsImportMessage(text, type) {
-  importUrlsMsg.textContent = text;
-  importUrlsMsg.className = `message ${type}`;
-  if (text) {
-    importUrlsMsg.style.display = "block";
-  } else {
-    importUrlsMsg.style.display = "none";
-  }
-}
-
 // Extract platform and slug from a URL or string
 function parseProblemUrlOrSlug(str) {
   str = str.trim();
@@ -756,72 +810,5 @@ function parseProblemUrlOrSlug(str) {
   }
 
   return null;
-}
-
-async function importCodingSheetFromUrls() {
-  const text = importUrlsText.value.trim();
-  const name = importUrlSheetName.value.trim();
-
-  if (!text || !name) {
-    showUrlsImportMessage("Enter both URL list and sheet title.", "error");
-    return;
-  }
-
-  importUrlsBtn.disabled = true;
-  showUrlsImportMessage("Parsing URLs...", "");
-
-  try {
-    const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-    const problems = [];
-    for (const line of lines) {
-      const parsed = parseProblemUrlOrSlug(line);
-      if (parsed) {
-        problems.push(parsed);
-      }
-    }
-
-    if (problems.length === 0) {
-      throw new Error("Could not parse any valid problem URLs or slugs.");
-    }
-
-    const uniqueProbs = [...new Set(problems)];
-    const sheet = {
-      sheetName: name,
-      problems: uniqueProbs
-    };
-
-    await saveCustomSheet(sheet);
-    
-    // Auto-map existing submissions history to this new sheet
-    const submissions = await getAllSubmissions().catch(() => []);
-    let matchCount = 0;
-    
-    invalidateCompiledCache();
-    await compileInvertedIndex();
-    
-    const sheetId = `custom:${name.replace(/\s+/g, "_")}`;
-    for (const sub of submissions) {
-      const problemKey = `${sub.platform.toLowerCase()}:${sub.slug.toLowerCase()}`;
-      
-      const resolvedSheets = getSheetsForProblem(sub.platform, sub.slug, sub.title);
-      if (resolvedSheets.includes(sheetId)) {
-        await markSolvedInProgress(sheetId, problemKey);
-        matchCount++;
-      }
-    }
-
-    // Clear fields
-    importUrlsText.value = "";
-    importUrlSheetName.value = "";
-
-    showUrlsImportMessage(`Successfully imported "${name}" with ${uniqueProbs.length} problems! Mapped ${matchCount} existing solved history.`, "success");
-    
-    invalidateCompiledCache();
-    await loadSheetsView();
-  } catch (e) {
-    showUrlsImportMessage(e.message, "error");
-  } finally {
-    importUrlsBtn.disabled = false;
-  }
 }
 

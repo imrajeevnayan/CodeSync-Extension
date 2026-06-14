@@ -35,7 +35,9 @@
     "https://onlinejudge.org/*",
     "https://uva.onlinejudge.org/*",
     "https://*.naukri.com/*",
-    "https://*.lintcode.com/*"
+    "https://*.lintcode.com/*",
+    "https://*.hynts.in/*",
+    "https://*.codolio.com/*"
   ],
   "background": {
     "service_worker": "background.js"
