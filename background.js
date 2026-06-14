@@ -362,7 +362,7 @@ function buildSubmissionBasePaths(submission, settings) {
   const platform = submission.isGfg160
     ? "GfG-160-160-Days-of-Problem-Solving"
     : sanitizePathPart(submission.platform);
-  const difficulty = sanitizePathPart(submission.difficulty).toLowerCase(); // e.g. easy, medium, hard, unknown
+  const difficulty = sanitizePathPart(submission.difficulty).toLowerCase();
   const problemTitle = sanitizePathPart(submission.title);
 
   if (cleanText(settings.folderConvention)) {
@@ -379,11 +379,30 @@ function buildSubmissionBasePaths(submission, settings) {
   }
 
   const paths = [];
+
+  // 1. Fetch matching sheets for the problem and create individual sheet folders
+  const sheets = getSheetsForProblem(submission.platform, submission.slug);
+  sheets.forEach((sheetId) => {
+    // Determine sheet name
+    let sheetName = sheetId;
+    if (SUPPORTED_SHEETS[sheetId]) {
+      sheetName = SUPPORTED_SHEETS[sheetId].name;
+    } else if (sheetId.startsWith("custom:")) {
+      sheetName = sheetId.replace("custom:", "").replace(/_/g, " ");
+    }
+    
+    paths.push(joinPath(
+      ...sanitizePath(baseFolder),
+      sanitizePathPart(sheetName),
+      problemTitle
+    ));
+  });
+
+  // 2. Standard platform-organized paths
   const topics = normalizeTopics(submission.topics);
   const topicFolders = topics.map((t) => normalizeTopicFolderName(t));
 
   if (submission.isGfg160) {
-    // Add direct path: [baseFolder]/GfG-160-160-Days-of-Problem-Solving/[problemTitle]
     paths.push(joinPath(
       ...sanitizePath(baseFolder),
       "GfG-160-160-Days-of-Problem-Solving",
@@ -391,7 +410,7 @@ function buildSubmissionBasePaths(submission, settings) {
     ));
   }
 
-  // Sync to topic folders (up to 3 topics to avoid rate limits)
+  // Sync to topic folders
   const syncTopics = topicFolders.slice(0, 3);
   syncTopics.forEach((topicFolder) => {
     paths.push(joinPath(
@@ -405,11 +424,11 @@ function buildSubmissionBasePaths(submission, settings) {
 
   // Sync to difficulty-specific "all" folder
   paths.push(joinPath(
-    ...sanitizePath(baseFolder),
-    platform,
-    difficulty,
-    "all",
-    problemTitle
+      ...sanitizePath(baseFolder),
+      platform,
+      difficulty,
+      "all",
+      problemTitle
   ));
 
   // Sync to platform-wide "all" folder
