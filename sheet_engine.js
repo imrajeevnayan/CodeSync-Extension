@@ -157,6 +157,13 @@ const SHEET_MAPPING_INDEX = {
 let compiledIndex = null;
 let compiledSheets = null;
 
+function getStandardPlatformPrefix(platform) {
+  const plat = String(platform || "").toLowerCase();
+  if (plat === "geeksforgeeks" || plat === "gfg") return "gfg";
+  if (plat === "codingninjas" || plat === "code360" || plat === "coding ninjas (code360)") return "codingninjas";
+  return plat;
+}
+
 // Fuzzy Normalization logic to clean names/slugs
 function fuzzyNormalize(str) {
   if (!str) return "";
@@ -204,27 +211,31 @@ async function compileInvertedIndex() {
 
 // Find fuzzy matching key in existing indices
 function findFuzzyMatch(probKey) {
-  if (SHEET_MAPPING_INDEX[probKey]) return probKey;
+  const [rawPlatform, rawSlug] = probKey.split(":");
+  const platform = getStandardPlatformPrefix(rawPlatform);
+  const slug = rawSlug || "";
+  const standardKey = `${platform}:${slug}`;
 
-  const [platform, slug] = probKey.split(":");
-  if (!slug) return probKey;
+  if (SHEET_MAPPING_INDEX[standardKey]) return standardKey;
+  if (!slug) return standardKey;
 
   const normSlug = fuzzyNormalize(slug);
   const keys = Object.keys(SHEET_MAPPING_INDEX);
   
   for (const k of keys) {
     const [kp, ks] = k.split(":");
-    if (kp === platform && fuzzyNormalize(ks) === normSlug) {
+    if (getStandardPlatformPrefix(kp) === platform && fuzzyNormalize(ks) === normSlug) {
       return k;
     }
   }
 
-  return probKey;
+  return standardKey;
 }
 
 // Sheet membership lookup
 function getSheetsForProblem(platform, slug) {
-  const normKey = `${platform.toLowerCase()}:${slug.toLowerCase()}`;
+  const plat = getStandardPlatformPrefix(platform);
+  const normKey = `${plat}:${slug.toLowerCase()}`;
   const sheets = [];
 
   // Match from precompiled or compiled dynamic index
@@ -236,13 +247,13 @@ function getSheetsForProblem(platform, slug) {
   }
 
   // Fallbacks
-  if (platform.toLowerCase() === "cses" && !sheets.includes("CSESSet")) {
+  if (plat === "cses" && !sheets.includes("CSESSet")) {
     sheets.push("CSESSet");
   }
-  if (platform.toLowerCase() === "interviewbit" && !sheets.includes("InterviewBitSet")) {
+  if (plat === "interviewbit" && !sheets.includes("InterviewBitSet")) {
     sheets.push("InterviewBitSet");
   }
-  if ((platform.toLowerCase() === "geeksforgeeks" || platform.toLowerCase() === "gfg") && !sheets.includes("GFG160")) {
+  if (plat === "gfg" && !sheets.includes("GFG160")) {
     sheets.push("GFG160");
   }
 
