@@ -55,6 +55,8 @@ const fields = {
   repository: document.getElementById("repository")
 };
 
+const syncHistoryButton = document.getElementById("syncHistoryButton");
+
 // Initialize
 document.addEventListener("DOMContentLoaded", () => {
   restoreSettings();
@@ -74,6 +76,7 @@ logoutButton.addEventListener("click", logoutFromGitHub);
 refreshReposButton.addEventListener("click", refreshRepositories);
 createRepoButton.addEventListener("click", createRepository);
 importBtn.addEventListener("click", importCodingSheet);
+syncHistoryButton.addEventListener("click", syncRepositoryHistory);
 
 repositorySelect.addEventListener("change", () => {
   if (repositorySelect.value) {
@@ -593,3 +596,101 @@ function setStorage(values) {
     });
   });
 }
+
+async function syncRepositoryHistory() {
+  syncHistoryButton.disabled = true;
+  const originalText = syncHistoryButton.textContent;
+  syncHistoryButton.textContent = "Syncing repository tree...";
+  showMessage("Fetching repository file structure from GitHub...", "");
+
+  try {
+    const settings = await getStorage(DEFAULT_SETTINGS);
+    if (!settings.githubToken || !settings.repository) {
+      throw new Error("Login with GitHub and select a repository first.");
+    }
+
+    const branch = settings.branch || "main";
+    const url = `https://api.github.com/repos/${settings.repository}/git/trees/${branch}?recursive=1`;
+    const response = await fetch(url, {
+      headers: {
+        "Accept": "application/vnd.github+json",
+        "Authorization": `Bearer ${settings.githubToken}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to load repository files: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const tree = data.tree || [];
+    
+    let processedCount = 0;
+    const platforms = ["leetcode", "geeksforgeeks", "gfg", "interviewbit", "cses", "codingninjas", "neetcode", "lintcode"];
+
+    // Compile active sheets (merges precompiled & custom imports)
+    await compileInvertedIndex();
+
+    for (const file of tree) {
+      if (file.type !== "blob") continue;
+
+      const parts = file.path.split("/");
+      if (parts.length < 3) continue; // Must be inside platform/difficulty/all/problemName/solution.ext
+
+      const platformDir = parts[0].toLowerCase();
+      // Only parse files matching recognized platform folders
+      if (!platforms.some(p => platformDir.includes(p))) continue;
+
+      // Ensure it is a solution file (e.g. filename starts with "solution.")
+      const filename = parts[parts.length - 1];
+      if (!filename.startsWith("solution.")) continue;
+
+      // Get the problem folder name (the parent directory of the solution file)
+      const problemSlug = parts[parts.length - 2];
+      if (!problemSlug || problemSlug === "all") continue;
+
+      let platform = "leetcode";
+      if (platformDir.includes("geeksforgeeks") || platformDir.includes("gfg")) platform = "geeksforgeeks";
+      else if (platformDir.includes("interviewbit")) platform = "interviewbit";
+      else if (platformDir.includes("cses")) platform = "cses";
+      else if (platformDir.includes("codingninjas") || platformDir.includes("code360")) platform = "codingninjas";
+      else if (platformDir.includes("neetcode")) platform = "neetcode";
+      else if (platformDir.includes("lintcode")) platform = "lintcode";
+
+      const problemKey = `${platform}:${problemSlug}`;
+
+      // Save dummy submission to deduplication log so it registers on heatmap
+      await saveSubmission(problemKey, {
+        platform,
+        slug: problemSlug,
+        title: problemSlug,
+        sourceCode: "...",
+        language: "...",
+        detectedAt: new Date().toISOString()
+      });
+
+      // Map to sheets
+      const sheets = getSheetsForProblem(platform, problemSlug);
+      for (const sheet of sheets) {
+        await markSolvedInProgress(sheet, problemKey);
+      }
+
+      processedCount++;
+    }
+
+    showMessage(`Sync complete! Loaded ${processedCount} historical solutions into your sheets tracker.`, "success");
+    syncHistoryButton.textContent = "Synced successfully!";
+    
+    // Reload active dashboard stats and sheets view
+    await loadDashboardView();
+  } catch (error) {
+    showMessage(error.message, "error");
+    syncHistoryButton.textContent = "Sync failed";
+  } finally {
+    setTimeout(() => {
+      syncHistoryButton.disabled = false;
+      syncHistoryButton.textContent = originalText;
+    }, 3000);
+  }
+}
+
