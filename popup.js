@@ -248,23 +248,13 @@ async function importCodingSheet() {
   const isUrl = /^https?:\/\//i.test(inputVal);
 
   if (isUrl) {
-    showImportMessage("Fetching and parsing sheet content...", "");
+    showImportMessage("Extracting links from page...", "");
     try {
-      const response = await fetch(inputVal);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch sheet page: ${response.status} ${response.statusText}`);
-      }
-      let html = await response.text();
-      
-      // Clean escapes
-      html = html.replaceAll('\\u0026', '&').replaceAll('\\/', '/');
-
-      // Match all problem URLs
-      const urlRegex = /(https?:\/\/[^\s"'`\\<>{}]+)/g;
-      const matches = html.match(urlRegex) || [];
+      const matches = await getLinksFromUrl(inputVal);
       
       const problems = [];
       for (const url of matches) {
+        if (typeof url !== 'string') continue;
         const cleanUrl = url.split('?')[0].split('#')[0].replace(/\\+$/, '').replace(/"$/, '').replace(/'$/, '').trim();
         const parsed = parseProblemUrlOrSlug(cleanUrl);
         if (parsed) {
@@ -812,5 +802,81 @@ function parseProblemUrlOrSlug(str) {
   }
 
   return null;
+}
+
+async function getLinksFromUrl(url) {
+  // Query if there's already an open tab with this URL
+  const tabs = await new Promise((resolve) => {
+    chrome.tabs.query({}, resolve);
+  });
+  
+  // Clean URL to ignore query strings/hash for matching
+  const targetClean = url.split('?')[0].split('#')[0].toLowerCase();
+  
+  let existingTab = tabs.find(t => t.url && t.url.split('?')[0].split('#')[0].toLowerCase() === targetClean);
+  
+  if (existingTab) {
+    // Tab already exists! Scrape it directly
+    return await scrapeLinksFromTab(existingTab.id);
+  } else {
+    // Create a new tab (inactive, so we don't grab focus)
+    const newTab = await new Promise((resolve, reject) => {
+      chrome.tabs.create({ url: url, active: false }, (tab) => {
+        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+        else resolve(tab);
+      });
+    });
+
+    // Wait for the page to load and render (3.5 seconds to be safe)
+    await new Promise(r => setTimeout(r, 3500));
+    
+    try {
+      const links = await scrapeLinksFromTab(newTab.id);
+      // Close the tab
+      chrome.tabs.remove(newTab.id);
+      return links;
+    } catch (e) {
+      // Make sure we close the tab in case of failure
+      chrome.tabs.remove(newTab.id);
+      throw e;
+    }
+  }
+}
+
+async function scrapeLinksFromTab(tabId) {
+  return new Promise((resolve, reject) => {
+    chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      func: () => {
+        // Expand folders if hynts.in
+        if (window.location.hostname.includes("hynts.in")) {
+          document.querySelectorAll('[data-slot="accordion-trigger"]').forEach(btn => {
+            if (btn.getAttribute('aria-expanded') !== 'true') {
+              btn.click();
+            }
+          });
+        }
+
+        const anchors = Array.from(document.querySelectorAll('a')).map(a => a.href);
+        let html = document.documentElement.innerHTML;
+        html = html.replaceAll('\\u0026', '&').replaceAll('\\/', '/');
+        
+        const urlRegex = /(https?:\/\/[^\s"'`\\<>{}]+)/g;
+        const matches = html.match(urlRegex) || [];
+        
+        return [...anchors, ...matches];
+      }
+    }, (results) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      if (!results || !results[0]) {
+        resolve([]);
+        return;
+      }
+      resolve(results[0].result || []);
+    });
+  });
 }
 
