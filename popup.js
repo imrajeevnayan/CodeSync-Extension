@@ -11,6 +11,15 @@ const DEFAULT_SETTINGS = {
   commitTemplate: "Add {platform} solution: {title}"
 };
 
+// DOM Navigation Elements
+const tabDashboard = document.getElementById("tabDashboard");
+const tabSheets = document.getElementById("tabSheets");
+const tabSettings = document.getElementById("tabSettings");
+const viewDashboard = document.getElementById("viewDashboard");
+const viewSheets = document.getElementById("viewSheets");
+const viewSettings = document.getElementById("viewSettings");
+
+// DOM Settings Form Elements
 const form = document.getElementById("settingsForm");
 const message = document.getElementById("message");
 const statusBadge = document.getElementById("statusBadge");
@@ -23,21 +32,49 @@ const createRepoButton = document.getElementById("createRepoButton");
 const newRepositoryName = document.getElementById("newRepositoryName");
 const selectedRepository = document.getElementById("selectedRepository");
 
+// DOM Dashboard Analytics Elements
+const currentStreakVal = document.getElementById("currentStreak");
+const maxStreakVal = document.getElementById("maxStreak");
+const heatmapGrid = document.getElementById("heatmapGrid");
+const insightsContainer = document.getElementById("insightsContainer");
+const strongestTopicText = document.getElementById("strongestTopic");
+const weakestTopicText = document.getElementById("weakestTopic");
+
+// DOM Sheets Progress Elements
+const statTotalSolved = document.getElementById("statTotalSolved");
+const statPendingQueue = document.getElementById("statPendingQueue");
+const sheetsGrid = document.getElementById("sheetsGrid");
+
+// DOM Sheet Importer Elements
+const importRepoUrl = document.getElementById("importRepoUrl");
+const importSheetName = document.getElementById("importSheetName");
+const importBtn = document.getElementById("importBtn");
+const importMsg = document.getElementById("importMsg");
+
 const fields = {
   repository: document.getElementById("repository")
 };
 
-document.addEventListener("DOMContentLoaded", restoreSettings);
+// Initialize
+document.addEventListener("DOMContentLoaded", () => {
+  restoreSettings();
+  initTabs();
+  loadDashboardView();
+});
+
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === "sync" && (changes.githubToken || changes.githubUser || changes.repository)) {
     restoreSettings();
   }
 });
+
 form.addEventListener("submit", (event) => event.preventDefault());
 loginButton.addEventListener("click", loginWithGitHub);
 logoutButton.addEventListener("click", logoutFromGitHub);
 refreshReposButton.addEventListener("click", refreshRepositories);
 createRepoButton.addEventListener("click", createRepository);
+importBtn.addEventListener("click", importCodingSheet);
+
 repositorySelect.addEventListener("change", () => {
   if (repositorySelect.value) {
     fields.repository.value = repositorySelect.value;
@@ -48,6 +85,189 @@ repositorySelect.addEventListener("change", () => {
   }
 });
 
+// Navigation Tab Switches
+function initTabs() {
+  tabDashboard.addEventListener("click", () => switchTab("dashboard"));
+  tabSheets.addEventListener("click", () => switchTab("sheets"));
+  tabSettings.addEventListener("click", () => switchTab("settings"));
+}
+
+function switchTab(tabName) {
+  tabDashboard.classList.toggle("active", tabName === "dashboard");
+  tabSheets.classList.toggle("active", tabName === "sheets");
+  tabSettings.classList.toggle("active", tabName === "settings");
+
+  viewDashboard.classList.toggle("active", tabName === "dashboard");
+  viewSheets.classList.toggle("active", tabName === "sheets");
+  viewSettings.classList.toggle("active", tabName === "settings");
+
+  if (tabName === "dashboard") {
+    loadDashboardView();
+  } else if (tabName === "sheets") {
+    loadSheetsView();
+  }
+}
+
+// TAB 1: Load general metrics and render SVG heatmap cells
+async function loadDashboardView() {
+  try {
+    const submissions = await getAllSubmissions().catch(() => []);
+
+    // 1. Calculate and populate streaks
+    const streak = calculateStreak(submissions);
+    currentStreakVal.textContent = String(streak.currentStreak);
+    maxStreakVal.textContent = String(streak.maxStreak);
+
+    // 2. Render Activity Heatmap
+    renderHeatmap(submissions);
+
+    // 3. Topics & Insights
+    const topicData = generateTopicAnalytics(submissions);
+    strongestTopicText.textContent = topicData.strongest || "None";
+    weakestTopicText.textContent = topicData.weakest || "None";
+
+    const insights = generateInsights(submissions, streak, topicData);
+    insightsContainer.innerHTML = "";
+    if (insights.length === 0) {
+      insightsContainer.innerHTML = '<div class="insight-item">💡 No insights available yet. Solve more problems to generate suggestions!</div>';
+    } else {
+      insights.forEach((insight) => {
+        const item = document.createElement("div");
+        item.className = "insight-item";
+        item.textContent = insight;
+        insightsContainer.appendChild(item);
+      });
+    }
+  } catch (err) {
+    console.error("Dashboard loading failed:", err);
+  }
+}
+
+// Renders the contribution board (53 cols x 7 rows)
+function renderHeatmap(submissions) {
+  heatmapGrid.innerHTML = "";
+  const counts = generateHeatmapData(submissions);
+  
+  const today = new Date();
+  const cells = [];
+
+  // Generate date order back 371 days to fit a perfect 53x7 grid grid
+  for (let i = 370; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const key = toLocalISOString(d).slice(0, 10);
+    const count = counts[key] || 0;
+
+    let level = "level-0";
+    if (count > 0 && count <= 2) level = "level-1";
+    else if (count > 2 && count <= 4) level = "level-2";
+    else if (count > 4 && count <= 6) level = "level-3";
+    else if (count > 6) level = "level-4";
+
+    const cell = document.createElement("div");
+    cell.className = `heatmap-cell ${level}`;
+    cell.title = `${count} submission${count !== 1 ? "s" : ""} on ${key}`;
+    cells.push(cell);
+  }
+
+  // To fit a standard Git calendar layout (column-wise filling), 
+  // we reorder elements or just append them directly in order.
+  cells.forEach(c => heatmapGrid.appendChild(c));
+}
+
+// TAB 2: Dynamic sheets progress lists & importing logic
+async function loadSheetsView() {
+  try {
+    // Compile active sheets (merges precompiled & custom imports)
+    const { sheets, index } = await compileInvertedIndex();
+
+    // Query solved progress
+    const allProgress = await getAllProgress().catch(() => []);
+    const progressMap = {};
+    allProgress.forEach(p => {
+      progressMap[p.sheetName] = p;
+    });
+
+    const uniqueSolved = new Set();
+    const jobs = await getQueueJobs().catch(() => []);
+    const pendingJobs = jobs.filter(j => j.status === "pending" || j.status === "processing" || j.status === "failed");
+    statPendingQueue.textContent = String(pendingJobs.length);
+
+    sheetsGrid.innerHTML = "";
+    Object.entries(sheets).forEach(([sheetId, sheetMeta]) => {
+      const progress = progressMap[sheetId] || { solvedKeys: [], lastSolved: 0 };
+      const solvedCount = progress.solvedKeys.length;
+      const totalCount = sheetMeta.total;
+      const pct = totalCount > 0 ? Math.min(Math.round((solvedCount / totalCount) * 100), 100) : 0;
+
+      // Register unique globally
+      progress.solvedKeys.forEach(k => uniqueSolved.add(k));
+
+      const card = document.createElement("div");
+      card.className = `sheet-card ${pct === 100 ? "completed" : ""}`;
+      
+      const lastSolvedText = progress.lastSolved 
+        ? `Last: ${new Date(progress.lastSolved).toLocaleDateString()}`
+        : "Not started";
+
+      card.innerHTML = `
+        <div class="sheet-info-row">
+          <span class="sheet-title">${sheetMeta.name}</span>
+          <span class="sheet-count">${solvedCount}<span>/${totalCount} (${pct}%)</span></span>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" style="width: ${pct}%"></div>
+        </div>
+        <span class="sheet-timestamp">${lastSolvedText}</span>
+      `;
+      sheetsGrid.appendChild(card);
+    });
+
+    statTotalSolved.textContent = String(uniqueSolved.size);
+  } catch (err) {
+    console.error("Sheets progress load failed:", err);
+  }
+}
+
+// GitHub sheet importer method
+async function importCodingSheet() {
+  const repo = importRepoUrl.value.trim();
+  const name = importSheetName.value.trim();
+
+  if (!repo || !name) {
+    showImportMessage("Enter both repository path and sheet name.", "error");
+    return;
+  }
+
+  importBtn.disabled = true;
+  showImportMessage("Fetching solution tree from GitHub...", "");
+
+  try {
+    const settings = await getStorage(DEFAULT_SETTINGS);
+    const sheet = await importSheetFromGitHub(repo, name, settings.githubToken);
+    
+    // Clear fields
+    importRepoUrl.value = "";
+    importSheetName.value = "";
+
+    showImportMessage(`Successfully imported ${sheet.problems.length} problems for "${name}"!`, "success");
+    
+    // Invalidate caches and reload sheets view
+    invalidateCompiledCache();
+    await loadSheetsView();
+  } catch (e) {
+    showImportMessage(e.message, "error");
+  } finally {
+    importBtn.disabled = false;
+  }
+}
+
+function showImportMessage(text, type) {
+  importMsg.textContent = text;
+  importMsg.className = `message ${type || ""}`.trim();
+}
+
+// Original settings auth restoration code
 async function restoreSettings() {
   try {
     const settings = await getStorage(DEFAULT_SETTINGS);
@@ -232,12 +452,6 @@ function readForm() {
     baseFolder: DEFAULT_SETTINGS.baseFolder,
     commitTemplate: DEFAULT_SETTINGS.commitTemplate
   };
-}
-
-function validateRepository(repository) {
-  if (!/^[\w.-]+\/[\w.-]+$/.test(repository || "")) {
-    throw new Error("Repository must be in owner/repository format.");
-  }
 }
 
 function githubApiHeaders(token) {

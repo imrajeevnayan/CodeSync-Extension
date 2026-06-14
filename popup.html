@@ -3,54 +3,157 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>CodeSync</title>
+    <title>CodeSync | Codolio Sheets Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="popup.css">
   </head>
   <body>
     <main class="shell">
       <header class="header">
-        <div>
-          <h1>CodeSync</h1>
-          <p>Sync accepted submissions to GitHub.</p>
+        <div class="logo-area">
+          <svg class="logo-icon" width="28" height="28" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="128" height="128" rx="28" fill="url(#logoGrad)"/>
+            <path d="M33 43L12 64L33 85L41 77L28 64L41 51L33 43ZM95 43L87 51L100 64L87 77L95 85L116 64L95 43ZM74 26L43 102H55L86 26H74Z" fill="#FFFFFF"/>
+            <defs>
+              <linearGradient id="logoGrad" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#38BDF8"/>
+                <stop offset="1" stop-color="#6366F1"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <div>
+            <h1>CodeSync</h1>
+            <p class="tagline">Codolio-grade coding hub</p>
+          </div>
         </div>
         <span id="statusBadge" class="badge">Not configured</span>
       </header>
 
-      <form id="settingsForm" class="form">
-        <section class="auth-panel" aria-label="GitHub authentication">
-          <div>
-            <span class="section-label">GitHub account</span>
-            <strong id="githubAccount">Not connected</strong>
-          </div>
-          <div class="auth-actions">
-            <button id="loginButton" class="primary" type="button">Login with GitHub</button>
-            <button id="logoutButton" class="secondary hidden" type="button">Logout</button>
-          </div>
-        </section>
+      <!-- Navigation Tabs -->
+      <nav class="tabs-nav" aria-label="Main Navigation">
+        <button id="tabDashboard" class="tab-btn active" type="button">Dashboard</button>
+        <button id="tabSheets" class="tab-btn" type="button">Coding Sheets</button>
+        <button id="tabSettings" class="tab-btn" type="button">Settings</button>
+      </nav>
 
-        <label class="field">
-          <span>Choose repository</span>
+      <!-- TAB 1: GENERAL ANALYTICS DASHBOARD -->
+      <section id="viewDashboard" class="tab-view active">
+        <!-- Streak Display -->
+        <div class="streak-banner">
+          <div class="streak-flame">🔥</div>
+          <div class="streak-info">
+            <div class="streak-count-row">
+              <span id="currentStreak">0</span> days active streak
+            </div>
+            <span class="streak-max">Personal record: <span id="maxStreak">0</span> days</span>
+          </div>
+        </div>
+
+        <!-- Heatmap Grid -->
+        <div class="heatmap-panel">
+          <div class="panel-title">Activity Heatmap (Last 365 Days)</div>
+          <div id="heatmapGrid" class="heatmap-grid">
+            <!-- 53 columns x 7 rows grid elements rendered via script -->
+          </div>
+        </div>
+
+        <!-- Insights Cards -->
+        <div class="insights-panel">
+          <div class="panel-title">Smart Recommendations</div>
+          <div id="insightsContainer" class="insights-list">
+            <!-- Dynamically populated recommendations -->
+          </div>
+        </div>
+
+        <!-- Platform/Topic breakdown -->
+        <div class="topics-panel">
+          <div class="panel-title">Topic Analytics</div>
+          <div class="analytics-row">
+            <div>Strongest: <strong id="strongestTopic" style="color: var(--accent);">None</strong></div>
+            <div>Weakest: <strong id="weakestTopic" style="color: var(--danger);">None</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: SHEETS LIST VIEW -->
+      <section id="viewSheets" class="tab-view">
+        <!-- Global Stats Panel -->
+        <div class="stats-panel">
+          <div class="stat-card">
+            <span class="stat-num" id="statTotalSolved">0</span>
+            <span class="stat-label">Unique Solved</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-num" id="statPendingQueue">0</span>
+            <span class="stat-label">Queue Jobs</span>
+          </div>
+        </div>
+
+        <!-- Auto Sheet Importer Card -->
+        <div class="import-card">
+          <h3>Auto Import Sheet</h3>
+          <p class="import-desc">Fetch solution folders from Striver, NeetCode or community repos to generate a custom tracking list.</p>
           <div class="inline-row">
-            <select id="repositorySelect">
-              <option value="">Login to load repositories</option>
-            </select>
-            <button id="refreshReposButton" class="secondary icon-button" type="button" title="Refresh repositories">Refresh</button>
+            <input id="importRepoUrl" type="text" placeholder="owner/repo-name" autocomplete="off" spellcheck="false">
+            <button id="importBtn" class="primary" type="button">Import</button>
           </div>
-          <strong id="selectedRepository" class="selected-repo">No repository selected</strong>
-        </label>
-
-        <section class="create-panel" aria-label="Create GitHub repository">
-          <span class="section-label">Create new repository</span>
-          <div class="inline-row">
-            <input id="newRepositoryName" type="text" autocomplete="off" spellcheck="false" placeholder="codesync-solutions">
-            <button id="createRepoButton" class="secondary" type="button">Create</button>
+          <div class="inline-row" style="margin-top: 6px;">
+            <input id="importSheetName" type="text" placeholder="Custom Sheet Title (e.g. Striver A2Z)" autocomplete="off" spellcheck="false">
           </div>
-        </section>
+          <div id="importMsg" class="message"></div>
+        </div>
 
-        <p id="message" class="message" role="status" aria-live="polite"></p>
-        <input id="repository" type="hidden">
-      </form>
+        <!-- Sheets Progress Grid -->
+        <div id="sheetsGrid" class="sheets-grid">
+          <!-- Dynamic sheet progress cards -->
+        </div>
+      </section>
+
+      <!-- TAB 3: CONFIGURATION SETTINGS -->
+      <section id="viewSettings" class="tab-view">
+        <form id="settingsForm" class="form">
+          <section class="auth-panel" aria-label="GitHub authentication">
+            <div>
+              <span class="section-label">GitHub Account</span>
+              <strong id="githubAccount">Not connected</strong>
+            </div>
+            <div class="auth-actions">
+              <button id="loginButton" class="primary" type="button">Login with GitHub</button>
+              <button id="logoutButton" class="secondary hidden" type="button">Logout</button>
+            </div>
+          </section>
+
+          <label class="field">
+            <span>Sync Destination Repository</span>
+            <div class="inline-row">
+              <select id="repositorySelect">
+                <option value="">Login to load repositories</option>
+              </select>
+              <button id="refreshReposButton" class="secondary icon-button" type="button" title="Refresh repositories">Refresh</button>
+            </div>
+            <strong id="selectedRepository" class="selected-repo">No repository selected</strong>
+          </label>
+
+          <section class="create-panel" aria-label="Create GitHub repository">
+            <span class="section-label">Create new repository</span>
+            <div class="inline-row">
+              <input id="newRepositoryName" type="text" autocomplete="off" spellcheck="false" placeholder="codesync-solutions">
+              <button id="createRepoButton" class="secondary" type="button">Create</button>
+            </div>
+          </section>
+
+          <p id="message" class="message" role="status" aria-live="polite"></p>
+          <input id="repository" type="hidden">
+        </form>
+      </section>
     </main>
+
+    <!-- Script tags order -->
+    <script src="db.js"></script>
+    <script src="analytics.js"></script>
+    <script src="sheet_engine.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

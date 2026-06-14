@@ -178,70 +178,82 @@
       return;
     }
 
-    cleanupSentSubmissions();
-
     try {
       const extracted = await platform.extractor(platform);
       if (!extracted || !extracted.accepted) {
         return;
       }
 
-      const submission = normalizeSubmission(extracted, platform);
-      const duplicateKey = createDuplicateKey(submission);
-      if (isDuplicate(duplicateKey)) {
-        return;
-      }
+      // Extract problem slug directly
+      const slug = getProblemSlug(platform.id, extracted.title);
 
-      markPending(duplicateKey);
+      const submission = {
+        platform: platform.name,
+        slug,
+        title: cleanText(extracted.title || getDocumentTitle()),
+        sourceCode: cleanCode(extracted.sourceCode || getVisibleCode()),
+        language: cleanText(extracted.language || detectLanguageFromPage()),
+        problemUrl: extracted.problemUrl || canonicalUrl(),
+        topics: extracted.topics || getGenericTopics(),
+        runtime: cleanText(extracted.runtime || getGenericRuntime()),
+        memory: cleanText(extracted.memory || getGenericMemory()),
+        difficulty: cleanText(extracted.difficulty || getGenericDifficulty()),
+        description: cleanDescription(extracted.description || getGenericDescription()),
+        detectedAt: new Date().toISOString()
+      };
+
       await sendSubmission(submission);
-      markSubmitted(duplicateKey);
-      console.info("CodeSync submission sent:", reason, submission.title);
+      console.info("CodeSync detected and sent submission:", reason, submission.title);
     } catch (error) {
       if (error?.message?.includes("Extension context invalidated") || !chrome.runtime?.id) {
         console.info("CodeSync: Extension was reloaded or updated. Please refresh the page to resume syncing.");
       } else {
         console.warn("CodeSync extraction failed:", error);
       }
-    } finally {
-      clearPendingSubmissions();
     }
+  }
+
+  function getProblemSlug(platformId, title) {
+    const path = location.pathname;
+    try {
+      if (platformId === "leetcode") {
+        const match = path.match(/\/problems\/([^/]+)/);
+        if (match) return match[1];
+      } else if (platformId === "geeksforgeeks" || platformId === "geeksforgeeks") {
+        const match = path.match(/\/problems\/([^/]+)/);
+        if (match) return match[1];
+      } else if (platformId === "interviewbit") {
+        const match = path.match(/\/problems\/([^/]+)/);
+        if (match) return match[1];
+      } else if (platformId === "cses") {
+        const match = path.match(/\/task\/([^/]+)/);
+        if (match) return match[1];
+      } else if (platformId === "codingninjas") {
+        const match = path.match(/\/problems\/([^/]+)/);
+        if (match) return match[1];
+      } else if (platformId === "neetcode") {
+        const match = path.match(/\/practice\/questions\/([^/]+)/) || path.match(/\/problems\/([^/]+)/);
+        if (match) return match[1];
+      }
+    } catch (e) {
+      console.warn("Error parsing slug from pathname:", e);
+    }
+
+    const t = title || getDocumentTitle() || "unknown";
+    return t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "unknown-problem";
   }
 
   function handleUnsupportedPlatform() {
     if (unsupportedPlatformWarned) {
       return;
     }
-
     unsupportedPlatformWarned = true;
     console.info("CodeSync skipped this page because the current coding platform is not supported.");
   }
 
-  function normalizeSubmission(extracted, platform) {
-    const sourceCode = cleanCode(extracted.sourceCode || getVisibleCode());
-    const title = cleanText(extracted.title || getDocumentTitle());
-    const language = cleanText(extracted.language || detectLanguageFromPage());
-    const problemUrl = extracted.problemUrl || canonicalUrl();
-
-    return {
-      id: hashString([platform.id, title, language, sourceCode].join("|")),
-      platform: platform.name,
-      title,
-      problemUrl,
-      language,
-      topics: normalizeTopics(extracted.topics || getGenericTopics(), title, extracted.description || getGenericDescription()),
-      runtime: cleanText(extracted.runtime || getGenericRuntime()),
-      memory: cleanText(extracted.memory || getGenericMemory()),
-      difficulty: cleanText(extracted.difficulty || getGenericDifficulty()),
-      sourceCode,
-      description: cleanDescription(extracted.description || getGenericDescription()),
-      detectedAt: new Date().toISOString(),
-      isGfg160: extracted.isGfg160 || false
-    };
-  }
-
   async function sendSubmission(submission) {
     if (!chrome.runtime?.id) {
-      throw new Error("Extension context invalidated. Please refresh the page.");
+      throw new Error("Extension context invalidated.");
     }
     return new Promise((resolve, reject) => {
       try {
@@ -254,12 +266,10 @@
             reject(new Error(error.message));
             return;
           }
-
           if (!response?.ok) {
-            reject(new Error(response?.error || "Background sync failed."));
+            reject(new Error(response?.error || "Background submission failed."));
             return;
           }
-
           resolve(response.result);
         });
       } catch (e) {

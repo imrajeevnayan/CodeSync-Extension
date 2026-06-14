@@ -1,5 +1,7 @@
 "use strict";
 
+importScripts("db.js", "analytics.js", "sheet_engine.js", "github_queue.js");
+
 const CODESYNC_GITHUB_CLIENT_ID = "Ov23likMwfQLsGH9E40I";
 const GITHUB_OAUTH_SCOPE = "repo";
 const GITHUB_DEVICE_CODE_URL = "https://github.com/login/device/code";
@@ -245,67 +247,81 @@ function getGitHubClientId() {
   return clientId;
 }
 
+// LRU Cache for fast deduplication checks (200 entries max, 45s TTL)
+const lruCache = new Map();
+const LRU_MAX_ENTRIES = 200;
+const DEDUPLICATION_TTL_MS = 45000;
+
+function checkLRUIsDuplicate(key) {
+  const now = Date.now();
+  if (lruCache.has(key)) {
+    const cachedAt = lruCache.get(key);
+    if (now - cachedAt < DEDUPLICATION_TTL_MS) {
+      lruCache.delete(key);
+      lruCache.set(key, cachedAt);
+      return true;
+    }
+    lruCache.delete(key);
+  }
+  
+  if (lruCache.size >= LRU_MAX_ENTRIES) {
+    const oldestKey = lruCache.keys().next().value;
+    lruCache.delete(oldestKey);
+  }
+  
+  lruCache.set(key, now);
+  return false;
+}
+
+// Sweep expired entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, cachedAt] of lruCache.entries()) {
+    if (now - cachedAt >= DEDUPLICATION_TTL_MS) {
+      lruCache.delete(key);
+    }
+  }
+}, 300000);
+
 async function handleSubmission(rawSubmission, sender) {
   const settings = await getSettings();
   validateSettings(settings);
 
-  // Normalize content-script data before deriving paths or writing to GitHub.
+  // Normalize data and extract slug/key
   const submission = normalizeSubmission(rawSubmission, sender);
-  const basePaths = buildSubmissionBasePaths(submission, settings);
-  const extension = extensionForLanguage(submission.language);
-  const solutionFileName = `solution.${extension}`;
-  const solutionHeader = getCommentHeader(submission, extension);
-  const readmeContent = buildReadme(submission);
-  const metadataContent = `${JSON.stringify(buildMetadata(submission), null, 2)}\n`;
-  const solutionContent = `${solutionHeader}${submission.sourceCode.trim()}\n`;
+  const problemKey = `${submission.platform.toLowerCase()}:${submission.slug.toLowerCase()}`;
 
-  const commitMessage = renderCommitMessage(settings.commitTemplate, submission);
-
-  const writeContext = {
-    token: settings.githubToken,
-    repository: settings.repository,
-    branch: cleanText(settings.branch),
-    author: buildCommitAuthor(settings),
-    message: commitMessage
-  };
-
-  // Sync to all computed base paths
-  for (const basePath of basePaths) {
-    await putGitHubFile({
-      ...writeContext,
-      path: joinPath(basePath, solutionFileName),
-      content: solutionContent
-    });
-
-    await putGitHubFile({
-      ...writeContext,
-      path: joinPath(basePath, "README.md"),
-      content: readmeContent
-    });
-
-    await putGitHubFile({
-      ...writeContext,
-      path: joinPath(basePath, "metadata.json"),
-      content: metadataContent
-    });
+  // 1st Level LRU Fast Memory Cache Check
+  if (checkLRUIsDuplicate(problemKey)) {
+    console.info(`CodeSync: Ignored duplicate submission (LRU) for ${problemKey}`);
+    return { ok: true, status: "ignored_duplicate" };
   }
 
-  if (settings.enableDailyStreak) {
-    await putGitHubFile({
-      ...writeContext,
-      path: buildDailyStreakPath(submission, settings),
-      content: buildDailyStreakContent(submission),
-      message: `Update CodeSync streak: ${new Date(submission.detectedAt).toISOString().slice(0, 10)}`
-    });
+  // 2nd Level Persistent DB check (fallback check)
+  const isDup = await isDuplicateSubmission(problemKey);
+  if (isDup) {
+    console.info(`CodeSync: Ignored duplicate submission (DB) for ${problemKey}`);
+    return { ok: true, status: "ignored_duplicate" };
   }
 
-  notify("CodeSync synced solution", `${submission.platform}: ${submission.title}`);
+  // Save submission to IndexedDB to mark as processed
+  await saveSubmission(problemKey, submission);
+
+  // Push sync job into queue
+  const jobId = await addToQueue(submission);
+  console.info(`CodeSync: Queued sync job ${jobId} for ${problemKey}`);
+
+  // Trigger queue check asynchronously
+  triggerQueueRun();
+
   return {
-    solutionPath: joinPath(basePaths[0], solutionFileName),
-    readmePath: joinPath(basePaths[0], "README.md"),
-    metadataPath: joinPath(basePaths[0], "metadata.json")
+    ok: true,
+    status: "queued",
+    jobId
   };
 }
+
+
 
 function normalizeSubmission(rawSubmission, sender) {
   const pageUrl = rawSubmission.problemUrl || sender?.tab?.url || "";
@@ -320,9 +336,13 @@ function normalizeSubmission(rawSubmission, sender) {
     throw new Error("Accepted submission was detected, but source code could not be extracted.");
   }
 
+  // Derive normalized slug if not provided
+  const slug = rawSubmission.slug || sanitizePathPart(title).toLowerCase().replace(/\s+/g, "-");
+
   return {
     id: rawSubmission.id || hashString(`${platform}|${title}|${language}|${sourceCode}`),
     platform,
+    slug,
     title,
     problemUrl: pageUrl,
     language,
@@ -865,3 +885,14 @@ function hashString(value) {
 function removeUndefined(object) {
   return Object.fromEntries(Object.entries(object || {}).filter(([, value]) => value !== undefined));
 }
+
+// Compile dynamic sheet indices on boot, then start queue
+compileInvertedIndex()
+  .then(() => {
+    startQueueProcessor();
+  })
+  .catch((e) => {
+    console.error("Index compilation failed, starting queue anyway:", e);
+    startQueueProcessor();
+  });
+
