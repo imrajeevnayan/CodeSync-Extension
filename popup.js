@@ -293,8 +293,10 @@ async function importCodingSheet() {
       
       const sheetId = `custom:${name.replace(/\s+/g, "_")}`;
       for (const sub of submissions) {
-        const problemKey = `${sub.platform.toLowerCase()}:${sub.slug.toLowerCase()}`;
-        const resolvedSheets = getSheetsForProblem(sub.platform, sub.slug, sub.title);
+        const p = sub.payload || sub;
+        if (!p || !p.platform || !p.slug) continue;
+        const problemKey = `${p.platform.toLowerCase()}:${p.slug.toLowerCase()}`;
+        const resolvedSheets = getSheetsForProblem(p.platform, p.slug, p.title || p.slug);
         if (resolvedSheets.includes(sheetId)) {
           await markSolvedInProgress(sheetId, problemKey);
           matchCount++;
