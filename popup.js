@@ -51,6 +51,11 @@ const importSheetName = document.getElementById("importSheetName");
 const importBtn = document.getElementById("importBtn");
 const importMsg = document.getElementById("importMsg");
 
+const importUrlsText = document.getElementById("importUrlsText");
+const importUrlSheetName = document.getElementById("importUrlSheetName");
+const importUrlsBtn = document.getElementById("importUrlsBtn");
+const importUrlsMsg = document.getElementById("importUrlsMsg");
+
 const fields = {
   repository: document.getElementById("repository")
 };
@@ -76,6 +81,7 @@ logoutButton.addEventListener("click", logoutFromGitHub);
 refreshReposButton.addEventListener("click", refreshRepositories);
 createRepoButton.addEventListener("click", createRepository);
 importBtn.addEventListener("click", importCodingSheet);
+importUrlsBtn.addEventListener("click", importCodingSheetFromUrls);
 syncHistoryButton.addEventListener("click", syncRepositoryHistory);
 
 repositorySelect.addEventListener("change", () => {
@@ -691,6 +697,131 @@ async function syncRepositoryHistory() {
       syncHistoryButton.disabled = false;
       syncHistoryButton.textContent = originalText;
     }, 3000);
+  }
+}
+
+// Function to show Excel list import messages
+function showUrlsImportMessage(text, type) {
+  importUrlsMsg.textContent = text;
+  importUrlsMsg.className = `message ${type}`;
+  if (text) {
+    importUrlsMsg.style.display = "block";
+  } else {
+    importUrlsMsg.style.display = "none";
+  }
+}
+
+// Extract platform and slug from a URL or string
+function parseProblemUrlOrSlug(str) {
+  str = str.trim();
+  if (!str) return null;
+
+  // Check if it's already in platform:slug format
+  if (/^[a-z0-9\-]+:[a-z0-9\-]+$/i.test(str)) {
+    return str.toLowerCase();
+  }
+
+  try {
+    const url = new URL(str);
+    const host = url.hostname.toLowerCase();
+    const pathParts = url.pathname.split("/").filter(Boolean);
+
+    let platform = "";
+    if (host.includes("leetcode")) platform = "leetcode";
+    else if (host.includes("geeksforgeeks") || host.includes("gfg")) platform = "gfg";
+    else if (host.includes("codingninjas") || host.includes("code360")) platform = "codingninjas";
+    else if (host.includes("interviewbit")) platform = "interviewbit";
+    else if (host.includes("neetcode")) platform = "neetcode";
+    else if (host.includes("cses")) platform = "cses";
+    else if (host.includes("codeforces")) platform = "codeforces";
+
+    if (platform) {
+      let slug = "";
+      if (pathParts.includes("problems")) {
+        slug = pathParts[pathParts.indexOf("problems") + 1] || "";
+      } else {
+        slug = pathParts[pathParts.length - 1] || "";
+      }
+      slug = slug.split("?")[0].split("#")[0];
+      if (slug) {
+        return `${platform}:${slug.toLowerCase()}`;
+      }
+    }
+  } catch (e) {
+    // Treat as generic slug (default to leetcode)
+    const cleaned = str.toLowerCase().replace(/[^a-z0-9\s\-]/g, "").replace(/[\s_]+/g, "-");
+    if (cleaned) {
+      return `leetcode:${cleaned}`;
+    }
+  }
+
+  return null;
+}
+
+async function importCodingSheetFromUrls() {
+  const text = importUrlsText.value.trim();
+  const name = importUrlSheetName.value.trim();
+
+  if (!text || !name) {
+    showUrlsImportMessage("Enter both URL list and sheet title.", "error");
+    return;
+  }
+
+  importUrlsBtn.disabled = true;
+  showUrlsImportMessage("Parsing URLs...", "");
+
+  try {
+    const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    const problems = [];
+    for (const line of lines) {
+      const parsed = parseProblemUrlOrSlug(line);
+      if (parsed) {
+        problems.push(parsed);
+      }
+    }
+
+    if (problems.length === 0) {
+      throw new Error("Could not parse any valid problem URLs or slugs.");
+    }
+
+    const uniqueProbs = [...new Set(problems)];
+    const sheet = {
+      sheetName: name,
+      problems: uniqueProbs
+    };
+
+    await saveCustomSheet(sheet);
+    
+    // Auto-map existing submissions history to this new sheet
+    const submissions = await getAllSubmissions().catch(() => []);
+    let matchCount = 0;
+    
+    invalidateCompiledCache();
+    await compileInvertedIndex();
+    
+    const sheetId = `custom:${name.replace(/\s+/g, "_")}`;
+    for (const sub of submissions) {
+      const problemKey = `${sub.platform.toLowerCase()}:${sub.slug.toLowerCase()}`;
+      
+      const resolvedSheets = getSheetsForProblem(sub.platform, sub.slug, sub.title);
+      if (resolvedSheets.includes(sheetId)) {
+        await markSolvedInProgress(sheetId, problemKey);
+        matchCount++;
+      }
+    }
+
+    // Clear fields
+    importUrlsText.value = "";
+    importUrlSheetName.value = "";
+
+    showUrlsImportMessage(`Successfully imported "${name}" with ${uniqueProbs.length} problems! Mapped ${matchCount} existing solved history.`, "success");
+    
+    invalidateCompiledCache();
+    await loadSheetsView();
+  } catch (e) {
+    showUrlsImportMessage(e.message, "error");
+  } finally {
+    importUrlsBtn.disabled = false;
   }
 }
 
