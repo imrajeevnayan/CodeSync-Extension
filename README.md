@@ -74,29 +74,38 @@ The following sheets are supported out-of-the-box:
 
 | Coding Sheet | Solved | Total |
 | :--- | :--- | :--- |
+| Code Army Sheet | 0 | 726 |
+| Strivers A2Z DSA Sheet | 0 | 455 |
+| Love Babbar Sheet | 0 | 445 |
+| DSA by Shradha Didi & Aman Bhaiya | 0 | 403 |
+| AlgoMaster 300 | 0 | 300 |
+| Arsh DSA Sheet | 0 | 287 |
+| Fraz DSA Sheet | 0 | 279 |
+| Neetcode 250 | 0 | 250 |
+| Striver SDE Sheet | 0 | 191 |
+| 20 Essential DSA Patterns | 0 | 180 |
+| Neetcode 150 | 0 | 150 |
+| Top Interview 150 | 0 | 150 |
+| Atharva Patil's 150 Sheet | 0 | 150 |
+| AlgoMaster 150 | 0 | 150 |
+| LeetCode 100 Most Liked | 0 | 100 |
+| 6 Companies 30 Days | 0 | 90 |
+| Striver 79 | 0 | 79 |
 | Blind 75 | 0 | 75 |
+| AlgoMaster 75 | 0 | 75 |
+| DP Mastery Sheet | 0 | 67 |
+| String Mastery Sheet | 0 | 51 |
+| Graph Mastery Sheet | 0 | 29 |
+| Heap Mastery Sheet | 0 | 22 |
 | Grind 75 | 0 | 75 |
 | Grind 169 | 0 | 169 |
-| NeetCode 150 | 0 | 150 |
 | LeetCode 75 | 0 | 75 |
-| Top Interview 150 | 0 | 150 |
-| Top 100 Liked | 0 | 100 |
 | SQL 50 | 0 | 50 |
-| Striver A2Z DSA | 0 | 450 |
-| Love Babbar 450 | 0 | 450 |
-| Coder Army DSA | 0 | 350 |
 | GFG 160 | 0 | 160 |
 | CSES Problem Set | 0 | 300 |
 | InterviewBit Sets | 0 | 200 |
 | Nishant Chahar 151 | 0 | 151 |
 | Kushal Vijay Patterns | 0 | 100 |
-| Apna College 375 | 0 | 375 |
-| Fraz Bhaiya Sheet | 0 | 250 |
-| AlgoMaster 75 | 0 | 75 |
-| 6 Companies 30 Days | 0 | 90 |
-| Striver 79 | 0 | 79 |
-| Atharva Patil 150 | 0 | 150 |
-| Striver SDE Sheet | 0 | 180 |
 
 ## Repository Structure
 

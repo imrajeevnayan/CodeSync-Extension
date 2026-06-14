@@ -1,30 +1,38 @@
 "use strict";
 
-// Pre-compiled supported sheets with metadata
 const SUPPORTED_SHEETS = {
   "Blind75": { name: "Blind 75", total: 75 },
   "Grind75": { name: "Grind 75", total: 75 },
   "Grind169": { name: "Grind 169", total: 169 },
-  "NeetCode150": { name: "NeetCode 150", total: 150 },
+  "NeetCode150": { name: "Neetcode 150", total: 150 },
   "LeetCode75": { name: "LeetCode 75", total: 75 },
   "TopInterview150": { name: "Top Interview 150", total: 150 },
-  "Top100Liked": { name: "Top 100 Liked", total: 100 },
+  "Top100Liked": { name: "LeetCode 100 Most Liked", total: 100 },
   "SQL50": { name: "SQL 50", total: 50 },
-  "StriverA2Z": { name: "Striver A2Z DSA", total: 450 },
-  "StriverSDE": { name: "Striver SDE Sheet", total: 180 },
-  "LoveBabbar450": { name: "Love Babbar 450", total: 450 },
-  "CoderArmy": { name: "Coder Army DSA", total: 350 },
+  "StriverA2Z": { name: "Strivers A2Z DSA Sheet", total: 455 },
+  "StriverSDE": { name: "Striver SDE Sheet", total: 191 },
+  "LoveBabbar450": { name: "Love Babbar Sheet", total: 445 },
+  "CoderArmy": { name: "Code Army Sheet", total: 726 },
   "GFG160": { name: "GFG 160", total: 160 },
   "CSESSet": { name: "CSES Problem Set", total: 300 },
   "InterviewBitSet": { name: "InterviewBit Sets", total: 200 },
   "NishantChahar151": { name: "Nishant Chahar 151", total: 151 },
   "KushalVijay20": { name: "Kushal Vijay Patterns", total: 100 },
-  "ApnaCollege375": { name: "Apna College 375", total: 375 },
-  "FrazBhaiya": { name: "Fraz Bhaiya Sheet", total: 250 },
+  "ApnaCollege375": { name: "DSA by Shradha Didi & Aman Bhaiya", total: 403 },
+  "FrazBhaiya": { name: "Fraz DSA Sheet", total: 279 },
   "AlgoMaster75": { name: "AlgoMaster 75", total: 75 },
-  "SixComp30Days": { name: "6 Companies 30 Days", total: 90 }, // updated to 90 as per the image
+  "SixComp30Days": { name: "6 Companies 30 Days", total: 90 },
   "Striver79": { name: "Striver 79", total: 79 },
-  "AtharvaPatil150": { name: "Atharva Patil 150", total: 150 }
+  "AtharvaPatil150": { name: "Atharva Patil's 150 Sheet", total: 150 },
+  "AlgoMaster300": { name: "AlgoMaster 300", total: 300 },
+  "ArshDSA": { name: "Arsh DSA Sheet", total: 287 },
+  "NeetCode250": { name: "Neetcode 250", total: 250 },
+  "Essential20": { name: "20 Essential DSA Patterns", total: 180 },
+  "AlgoMaster150": { name: "AlgoMaster 150", total: 150 },
+  "DPMastery": { name: "DP Mastery Sheet", total: 67 },
+  "StringMastery": { name: "String Mastery Sheet", total: 51 },
+  "GraphMastery": { name: "Graph Mastery Sheet", total: 29 },
+  "HeapMastery": { name: "Heap Mastery Sheet", total: 22 }
 };
 
 // Inverted index for O(1) sheet lookups
