@@ -207,16 +207,25 @@ async function updateReadmeSolvedCounts(writeContext) {
   let updatedText = readmeText;
   let hasChanges = false;
 
-  for (const [sheetId, sheetMeta] of Object.entries(SUPPORTED_SHEETS)) {
-    const solvedCount = solvedCounts[sheetId] || 0;
-    const escapedName = sheetMeta.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-    const regex = new RegExp(`(\\|\\s*${escapedName}\\s*\\|\\s*)\\d+(\\s*\\|\\s*${sheetMeta.total}\\s*\\|)`, "i");
+  const hasTable = updatedText.includes("Coding Sheets Progress") || updatedText.includes("Supported Coding Sheets");
 
-    if (regex.test(updatedText)) {
-      const newText = updatedText.replace(regex, `$1${solvedCount}$2`);
-      if (newText !== updatedText) {
-        updatedText = newText;
-        hasChanges = true;
+  if (!hasTable) {
+    // Generate and append sheets progress table if missing
+    const initialTable = getInitialProgressTable(solvedCounts);
+    updatedText = updatedText.trim() + "\n\n" + initialTable;
+    hasChanges = true;
+  } else {
+    for (const [sheetId, sheetMeta] of Object.entries(SUPPORTED_SHEETS)) {
+      const solvedCount = solvedCounts[sheetId] || 0;
+      const escapedName = sheetMeta.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const regex = new RegExp(`(\\|\\s*${escapedName}\\s*\\|\\s*)\\d+(\\s*\\|\\s*${sheetMeta.total}\\s*\\|)`, "i");
+
+      if (regex.test(updatedText)) {
+        const newText = updatedText.replace(regex, `$1${solvedCount}$2`);
+        if (newText !== updatedText) {
+          updatedText = newText;
+          hasChanges = true;
+        }
       }
     }
   }
@@ -230,6 +239,23 @@ async function updateReadmeSolvedCounts(writeContext) {
     });
     console.info("Successfully updated sheets solved progress tracker in repository README.md");
   }
+}
+
+function getInitialProgressTable(solvedCounts) {
+  const lines = [
+    "## Coding Sheets Progress",
+    "",
+    "CodeSync automatically tracks your progress across curated coding sheets. Here is your current progress:",
+    "",
+    "| Coding Sheet | Solved | Total |",
+    "| :--- | :--- | :--- |"
+  ];
+  for (const [sheetId, sheetMeta] of Object.entries(SUPPORTED_SHEETS)) {
+    const solvedCount = solvedCounts[sheetId] || 0;
+    lines.push(`| ${sheetMeta.name} | ${solvedCount} | ${sheetMeta.total} |`);
+  }
+  lines.push("");
+  return lines.join("\n");
 }
 
 function base64ToUtf8(str) {
