@@ -137,6 +137,13 @@ async function executeJob(submission) {
   // Handle Global/Custom Metadata Folders
   await updateSheetMetadata(submission, sheets, writeContext);
 
+  // Update repository README.md with latest sheets solved counts
+  try {
+    await updateReadmeSolvedCounts(writeContext);
+  } catch (err) {
+    console.warn("Failed to update README solved counts:", err.message);
+  }
+
   if (settings.enableDailyStreak) {
     await putGitHubFile({
       ...writeContext,
@@ -156,7 +163,7 @@ async function updateSheetMetadata(submission, sheets, writeContext) {
   try {
     const existingFile = await getGitHubFile(writeContext.token, `https://api.github.com/repos/${writeContext.repository}/contents/${metadataPath}`, writeContext.branch);
     if (existingFile && existingFile.content) {
-      const decoded = atob(existingFile.content.replace(/\s/g, ""));
+      const decoded = base64ToUtf8(existingFile.content);
       existingIndex = JSON.parse(decoded);
     }
   } catch (e) {
@@ -174,4 +181,63 @@ async function updateSheetMetadata(submission, sheets, writeContext) {
     content: content,
     message: `Update sheets metadata for ${problemKey}`
   });
+}
+
+async function updateReadmeSolvedCounts(writeContext) {
+  const readmePath = "README.md";
+  let readmeFile;
+  try {
+    readmeFile = await getGitHubFile(writeContext.token, `https://api.github.com/repos/${writeContext.repository}/contents/${readmePath}`, writeContext.branch);
+  } catch (e) {
+    console.info("Could not fetch README.md to update solved progress:", e.message);
+    return;
+  }
+
+  if (!readmeFile || !readmeFile.content) {
+    return;
+  }
+
+  const progressList = await getAllProgress().catch(() => []);
+  const solvedCounts = {};
+  progressList.forEach((p) => {
+    solvedCounts[p.sheetName] = p.solvedKeys.length;
+  });
+
+  const readmeText = base64ToUtf8(readmeFile.content);
+  let updatedText = readmeText;
+  let hasChanges = false;
+
+  for (const [sheetId, sheetMeta] of Object.entries(SUPPORTED_SHEETS)) {
+    const solvedCount = solvedCounts[sheetId] || 0;
+    const escapedName = sheetMeta.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(`(\\|\\s*${escapedName}\\s*\\|\\s*)\\d+(\\s*\\|\\s*${sheetMeta.total}\\s*\\|)`, "i");
+
+    if (regex.test(updatedText)) {
+      const newText = updatedText.replace(regex, `$1${solvedCount}$2`);
+      if (newText !== updatedText) {
+        updatedText = newText;
+        hasChanges = true;
+      }
+    }
+  }
+
+  if (hasChanges) {
+    await putGitHubFile({
+      ...writeContext,
+      path: readmePath,
+      content: updatedText,
+      message: "docs: update sheets solved progress tracker in README"
+    });
+    console.info("Successfully updated sheets solved progress tracker in repository README.md");
+  }
+}
+
+function base64ToUtf8(str) {
+  const binary = atob(str.replace(/\s/g, ""));
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new TextDecoder().decode(bytes);
 }

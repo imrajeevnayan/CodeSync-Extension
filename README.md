@@ -72,30 +72,30 @@ CodeSync automatically detects when a solved problem belongs to any of the curat
 
 The following sheets are supported out-of-the-box:
 
-| Coding Sheet | Question Count |
-| :--- | :--- |
-| Blind 75 | 75 |
-| Grind 75 | 75 |
-| Grind 169 | 169 |
-| NeetCode 150 | 150 |
-| LeetCode 75 | 75 |
-| Top Interview 150 | 150 |
-| Top 100 Liked | 100 |
-| SQL 50 | 50 |
-| Striver A2Z DSA | 450 |
-| Love Babbar 450 | 450 |
-| Coder Army DSA | 350 |
-| GFG 160 | 160 |
-| CSES Problem Set | 300 |
-| InterviewBit Sets | 200 |
-| Nishant Chahar 151 | 151 |
-| Kushal Vijay Patterns | 100 |
-| Apna College 375 | 375 |
-| Fraz Bhaiya Sheet | 250 |
-| AlgoMaster 75 | 75 |
-| 6 Companies 30 Days | 90 |
-| Striver 79 | 79 |
-| Atharva Patil 150 | 150 |
+| Coding Sheet | Solved | Total |
+| :--- | :--- | :--- |
+| Blind 75 | 0 | 75 |
+| Grind 75 | 0 | 75 |
+| Grind 169 | 0 | 169 |
+| NeetCode 150 | 0 | 150 |
+| LeetCode 75 | 0 | 75 |
+| Top Interview 150 | 0 | 150 |
+| Top 100 Liked | 0 | 100 |
+| SQL 50 | 0 | 50 |
+| Striver A2Z DSA | 0 | 450 |
+| Love Babbar 450 | 0 | 450 |
+| Coder Army DSA | 0 | 350 |
+| GFG 160 | 0 | 160 |
+| CSES Problem Set | 0 | 300 |
+| InterviewBit Sets | 0 | 200 |
+| Nishant Chahar 151 | 0 | 151 |
+| Kushal Vijay Patterns | 0 | 100 |
+| Apna College 375 | 0 | 375 |
+| Fraz Bhaiya Sheet | 0 | 250 |
+| AlgoMaster 75 | 0 | 75 |
+| 6 Companies 30 Days | 0 | 90 |
+| Striver 79 | 0 | 79 |
+| Atharva Patil 150 | 0 | 150 |
 
 ## Repository Structure
 
