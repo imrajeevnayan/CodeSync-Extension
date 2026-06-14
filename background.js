@@ -381,7 +381,7 @@ function buildSubmissionBasePaths(submission, settings) {
   const paths = [];
 
   // 1. Fetch matching sheets for the problem and create individual sheet folders
-  const sheets = getSheetsForProblem(submission.platform, submission.slug);
+  const sheets = getSheetsForProblem(submission.platform, submission.slug, submission.title);
   sheets.forEach((sheetId) => {
     // Determine sheet name
     let sheetName = sheetId;

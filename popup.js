@@ -670,7 +670,7 @@ async function syncRepositoryHistory() {
       });
 
       // Map to sheets
-      const sheets = getSheetsForProblem(platform, problemSlug);
+      const sheets = getSheetsForProblem(platform, problemSlug, problemSlug);
       for (const sheet of sheets) {
         await markSolvedInProgress(sheet, problemKey);
       }

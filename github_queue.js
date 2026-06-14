@@ -61,7 +61,7 @@ async function processQueue() {
 
         // Update progress of completed sheets
         const problemKey = `${job.payload.platform.toLowerCase()}:${job.payload.slug.toLowerCase()}`;
-        const sheets = getSheetsForProblem(job.payload.platform, job.payload.slug);
+        const sheets = getSheetsForProblem(job.payload.platform, job.payload.slug, job.payload.title);
         
         // Batch progress updates
         for (const sheet of sheets) {
@@ -99,7 +99,7 @@ async function executeJob(submission) {
   const metadataContent = `${JSON.stringify(buildMetadata(submission), null, 2)}\n`;
   const solutionContent = `${solutionHeader}${submission.sourceCode.trim()}\n`;
 
-  const sheets = getSheetsForProblem(submission.platform, submission.slug);
+  const sheets = getSheetsForProblem(submission.platform, submission.slug, submission.title);
   const sheetsLine = sheets.length > 0 ? sheets.join(", ") : "None";
 
   // Clean commit message

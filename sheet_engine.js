@@ -167,22 +167,111 @@ let compiledIndex = null;
 let compiledSheets = null;
 
 function getStandardPlatformPrefix(platform) {
-  const plat = String(platform || "").toLowerCase();
+  const plat = String(platform || "").toLowerCase().trim();
   if (plat === "geeksforgeeks" || plat === "gfg") return "gfg";
   if (plat === "codingninjas" || plat === "code360" || plat === "coding ninjas (code360)") return "codingninjas";
+  if (plat === "interviewbit" || plat === "ib") return "interviewbit";
   return plat;
 }
 
-// Fuzzy Normalization logic to clean names/slugs
-function fuzzyNormalize(str) {
+// Robust normalization logic to clean names/slugs into standard kebab-case format
+function normalizeSlug(str) {
   if (!str) return "";
-  const stopWords = new Set(["problem", "solution", "dsa", "sheet", "a", "an", "the", "in", "of", "and", "or", "to", "for", "on", "with", "at", "set", "questions", "question"]);
-  return str
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "") // remove punctuation
-    .split(/[\s_-]+/)
-    .filter((word) => word && !stopWords.has(word))
-    .join("-");
+  try {
+    str = decodeURIComponent(str);
+  } catch (e) {}
+  
+  // Remove leading digits/question numbering (e.g. "1. Two Sum" -> "Two Sum")
+  str = str.replace(/^\s*\d+[\s\.\-_:\/]+/, "");
+  str = str.replace(/^(problem|question|task|ques)\s*\d+[\s\.\-_:\/]*/i, "");
+  str = str.toLowerCase();
+  
+  // Normalize synonyms
+  str = str.replace(/\bzeroes\b/g, "zeros");
+  str = str.replace(/\bbinary\s+search\s+tree\b/g, "bst");
+  str = str.replace(/\blinked\s+list\b/g, "linkedlist");
+  str = str.replace(/\bdepth\s+first\s+search\b/g, "dfs");
+  str = str.replace(/\bbreadth\s+first\s+search\b/g, "bfs");
+  
+  str = str.replace(/[^a-z0-9\s\-]/g, "");
+  str = str.replace(/[\s\-_]+/g, "-");
+  return str.replace(/^-+|-+$/g, "");
+}
+
+// Tokenize and filter stop words
+function getTokens(str) {
+  const normalized = normalizeSlug(str);
+  const stopWords = new Set([
+    "a", "an", "the", "in", "of", "and", "or", "to", "for", "on", "with", "at",
+    "by", "from", "sheet", "dsa", "problem", "solution", "easy", "medium", "hard"
+  ]);
+  return normalized.split("-").filter(token => token && !stopWords.has(token));
+}
+
+// Levenshtein edit distance
+function levenshteinDistance(s1, s2) {
+  const len1 = s1.length;
+  const len2 = s2.length;
+  const matrix = Array.from({ length: len1 + 1 }, () => new Array(len2 + 1).fill(0));
+  
+  for (let i = 0; i <= len1; i++) matrix[i][0] = i;
+  for (let j = 0; j <= len2; j++) matrix[0][j] = j;
+  
+  for (let i = 1; i <= len1; i++) {
+    for (let j = 1; j <= len2; j++) {
+      const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost
+      );
+    }
+  }
+  return matrix[len1][len2];
+}
+
+// Multi-strategy fuzzy match
+function fuzzyMatch(subTitle, subSlug, entrySlug) {
+  const normSubTitle = normalizeSlug(subTitle);
+  const normSubSlug = normalizeSlug(subSlug);
+  const normEntrySlug = normalizeSlug(entrySlug);
+
+  if (normSubSlug === normEntrySlug || normSubTitle === normEntrySlug) {
+    return true;
+  }
+
+  if (normSubSlug.includes(normEntrySlug) || normEntrySlug.includes(normSubSlug)) {
+    const subWordsCount = normSubSlug.split("-").length;
+    const entryWordsCount = normEntrySlug.split("-").length;
+    if (Math.abs(subWordsCount - entryWordsCount) <= 2 && Math.min(subWordsCount, entryWordsCount) >= 2) {
+      return true;
+    }
+  }
+
+  const subTokens = getTokens(subTitle || subSlug);
+  const entryTokens = getTokens(entrySlug);
+  
+  if (subTokens.length > 0 && entryTokens.length > 0) {
+    const common = subTokens.filter(t => entryTokens.includes(t));
+    const minLen = Math.min(subTokens.length, entryTokens.length);
+    
+    if (minLen <= 2 && common.length === minLen) {
+      return true;
+    }
+    if (minLen > 2 && common.length >= Math.ceil(minLen * 0.8)) {
+      return true;
+    }
+  }
+
+  if (Math.abs(normSubSlug.length - normEntrySlug.length) <= 3) {
+    const distance = levenshteinDistance(normSubSlug, normEntrySlug);
+    const maxAllowedDistance = Math.min(2, Math.floor(normEntrySlug.length * 0.2));
+    if (distance <= maxAllowedDistance) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 // Rebuild dynamic sheets index (merge pre-compiled + custom sheets)
@@ -201,7 +290,6 @@ async function compileInvertedIndex() {
       compiledSheets[sheetId] = { name: sheet.sheetName, total: sheet.problems.length, isCustom: true };
 
       sheet.problems.forEach((probKey) => {
-        // Find best match in pre-existing keys or match fuzzy
         const matchedKey = findFuzzyMatch(probKey);
         if (!compiledIndex[matchedKey]) {
           compiledIndex[matchedKey] = [];
@@ -228,12 +316,12 @@ function findFuzzyMatch(probKey) {
   if (SHEET_MAPPING_INDEX[standardKey]) return standardKey;
   if (!slug) return standardKey;
 
-  const normSlug = fuzzyNormalize(slug);
+  const normSlug = normalizeSlug(slug);
   const keys = Object.keys(SHEET_MAPPING_INDEX);
   
   for (const k of keys) {
     const [kp, ks] = k.split(":");
-    if (getStandardPlatformPrefix(kp) === platform && fuzzyNormalize(ks) === normSlug) {
+    if (getStandardPlatformPrefix(kp) === platform && fuzzyMatch(slug, slug, ks)) {
       return k;
     }
   }
@@ -241,18 +329,27 @@ function findFuzzyMatch(probKey) {
   return standardKey;
 }
 
-// Sheet membership lookup
-function getSheetsForProblem(platform, slug) {
+// Sheet membership lookup (with cross-platform matching support)
+function getSheetsForProblem(platform, slug, title) {
   const plat = getStandardPlatformPrefix(platform);
-  const normKey = `${plat}:${slug.toLowerCase()}`;
+  const normSlug = normalizeSlug(slug);
+  const normTitle = title ? normalizeSlug(title) : normSlug.replace(/[-_]+/g, " ");
+  
   const sheets = [];
-
-  // Match from precompiled or compiled dynamic index
   const index = compiledIndex || SHEET_MAPPING_INDEX;
-  const matchedKey = findFuzzyMatch(normKey);
 
-  if (index[matchedKey]) {
-    sheets.push(...index[matchedKey]);
+  // 1. Direct same-platform exact lookup
+  const directKey = `${plat}:${normSlug}`;
+  if (index[directKey]) {
+    sheets.push(...index[directKey]);
+  }
+
+  // 2. Cross-platform fuzzy matching lookup
+  for (const [entryKey, sheetIds] of Object.entries(index)) {
+    const [_, entrySlug] = entryKey.split(":");
+    if (fuzzyMatch(normTitle, normSlug, entrySlug)) {
+      sheets.push(...sheetIds);
+    }
   }
 
   // Fallbacks
