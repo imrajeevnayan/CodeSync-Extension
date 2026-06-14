@@ -847,7 +847,21 @@ async function scrapeLinksFromTab(tabId) {
   return new Promise((resolve, reject) => {
     chrome.scripting.executeScript({
       target: { tabId: tabId },
-      func: () => {
+      func: async () => {
+        const linksSet = new Set();
+        
+        const collect = () => {
+          Array.from(document.querySelectorAll('a')).forEach(a => {
+            if (a.href) linksSet.add(a.href);
+          });
+          
+          let html = document.documentElement.innerHTML;
+          html = html.replaceAll('\\u0026', '&').replaceAll('\\/', '/');
+          const urlRegex = /(https?:\/\/[^\s"'`\\<>{}]+)/g;
+          const matches = html.match(urlRegex) || [];
+          matches.forEach(url => linksSet.add(url));
+        };
+
         // Expand folders if hynts.in
         if (window.location.hostname.includes("hynts.in")) {
           document.querySelectorAll('[data-slot="accordion-trigger"]').forEach(btn => {
@@ -857,14 +871,24 @@ async function scrapeLinksFromTab(tabId) {
           });
         }
 
-        const anchors = Array.from(document.querySelectorAll('a')).map(a => a.href);
-        let html = document.documentElement.innerHTML;
-        html = html.replaceAll('\\u0026', '&').replaceAll('\\/', '/');
-        
-        const urlRegex = /(https?:\/\/[^\s"'`\\<>{}]+)/g;
-        const matches = html.match(urlRegex) || [];
-        
-        return [...anchors, ...matches];
+        collect();
+
+        // If codolio or similar SPA sheet page, scroll step-by-step to trigger infinite scrolling
+        if (window.location.hostname.includes("codolio.com")) {
+          const totalHeight = document.body.scrollHeight || document.documentElement.scrollHeight || 10000;
+          const steps = 10;
+          for (let i = 1; i <= steps; i++) {
+            window.scrollTo(0, (totalHeight / steps) * i);
+            await new Promise(r => setTimeout(r, 200));
+            collect();
+          }
+          // Final scroll to bottom
+          window.scrollTo(0, document.body.scrollHeight || document.documentElement.scrollHeight);
+          await new Promise(r => setTimeout(r, 300));
+          collect();
+        }
+
+        return Array.from(linksSet);
       }
     }, (results) => {
       if (chrome.runtime.lastError) {
