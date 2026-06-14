@@ -15,20 +15,24 @@ const SUPPORTED_SHEETS = {
   "CoderArmy": { name: "Coder Army DSA", total: 350 },
   "GFG160": { name: "GFG 160", total: 160 },
   "CSESSet": { name: "CSES Problem Set", total: 300 },
-  "InterviewBitSet": { name: "InterviewBit Sets", total: 200 }
+  "InterviewBitSet": { name: "InterviewBit Sets", total: 200 },
+  "NishantChahar151": { name: "Nishant Chahar 151", total: 151 },
+  "KushalVijay20": { name: "Kushal Vijay Patterns", total: 100 },
+  "ApnaCollege375": { name: "Apna College 375", total: 375 },
+  "FrazBhaiya": { name: "Fraz Bhaiya Sheet", total: 250 }
 };
 
 // Inverted index for O(1) sheet lookups
 // Key: 'platform:slug'
 const SHEET_MAPPING_INDEX = {
   // LeetCode Arrays & Hashing
-  "leetcode:two-sum": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450"],
-  "leetcode:valid-parentheses": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z"],
-  "leetcode:merge-two-sorted-lists": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450"],
-  "leetcode:best-time-to-buy-and-sell-stock": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450"],
-  "leetcode:valid-palindrome": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150", "StriverA2Z"],
-  "leetcode:invert-binary-tree": ["Blind75", "Grind75", "Grind169", "NeetCode150", "Top100Liked", "StriverA2Z", "LoveBabbar450"],
-  "leetcode:valid-anagram": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "StriverA2Z"],
+  "leetcode:two-sum": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "NishantChahar151", "KushalVijay20", "ApnaCollege375", "FrazBhaiya"],
+  "leetcode:valid-parentheses": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "NishantChahar151", "KushalVijay20", "ApnaCollege375", "FrazBhaiya"],
+  "leetcode:merge-two-sorted-lists": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "NishantChahar151", "ApnaCollege375", "FrazBhaiya"],
+  "leetcode:best-time-to-buy-and-sell-stock": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "NishantChahar151", "KushalVijay20", "ApnaCollege375", "FrazBhaiya"],
+  "leetcode:valid-palindrome": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150", "StriverA2Z", "NishantChahar151", "ApnaCollege375", "FrazBhaiya"],
+  "leetcode:invert-binary-tree": ["Blind75", "Grind75", "Grind169", "NeetCode150", "Top100Liked", "StriverA2Z", "LoveBabbar450", "NishantChahar151", "ApnaCollege375", "FrazBhaiya"],
+  "leetcode:valid-anagram": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "StriverA2Z", "NishantChahar151", "ApnaCollege375", "FrazBhaiya"],
   "leetcode:binary-search": ["Blind75", "Grind75", "Grind169", "NeetCode150", "LeetCode75", "TopInterview150", "StriverA2Z"],
   "leetcode:flood-fill": ["Blind75", "Grind75", "Grind169", "NeetCode150", "StriverA2Z"],
   "leetcode:lowest-common-ancestor-of-a-binary-search-tree": ["Blind75", "Grind75", "Grind169", "NeetCode150", "TopInterview150", "StriverA2Z", "LoveBabbar450"],
