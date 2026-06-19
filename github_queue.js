@@ -16,7 +16,7 @@ function triggerQueueRun() {
   // Run processQueue dynamically
   queueTimeoutId = setTimeout(() => {
     processQueue().catch((err) => console.error("Error processing sync queue:", err));
-  }, 500);
+  }, 100);
 }
 
 async function processQueue() {

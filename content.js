@@ -1,8 +1,8 @@
 "use strict";
 
 (() => {
-  const CHECK_DEBOUNCE_MS = 700;
-  const CHECK_THROTTLE_MS = 1500;
+  const CHECK_DEBOUNCE_MS = 300;
+  const CHECK_THROTTLE_MS = 800;
   const DUPLICATE_TTL_MS = 10 * 60 * 1000;
   const sentSubmissions = new Map();
   const pendingSubmissions = new Set();
