@@ -585,7 +585,18 @@
 
   function extractCodingNinjas() {
     return {
-      accepted: pageHasAcceptedText(["[class*='accepted']", "[class*='success']", "[class*='passed']", "[class*='correct']", "[class*='status']"]),
+      accepted: pageHasAcceptedText([
+        "[class*='accepted']",
+        "[class*='success']",
+        "[class*='passed']",
+        "[class*='correct']",
+        "[class*='status']",
+        "[class*='verdict']",
+        "[class*='result']",
+        "[class*='Answer']",
+        ".correct-answer",
+        ".correct"
+      ]),
       title: textFromSelectors(["[class*='problem-title']", "[class*='ProblemTitle']", "h1", "h2", "h3"]),
       language: textFromSelectors(["[class*='language']", "select option:checked", "button[aria-haspopup='listbox']"]),
       sourceCode: codeFromMonaco() || codeFromCodeMirror() || codeFromAce() || codeFromSelectors(["pre", "code", "textarea"]),
@@ -716,6 +727,18 @@
     // Prefer scoped verdict text, then fall back to body text for sites with loose markup.
     const acceptedPattern = /\b(accepted|successful|correct answer|all tests passed|congratulations|passed|solved|complete|100\/100|score:\s*100|AC)\b/i;
     const rejectedPattern = /\b(wrong answer|runtime error|time limit exceeded|memory limit exceeded|compilation error|compile error|failed|failure|rejected|pending|queued|running|judging|in progress|processing|partial|skipped)\b/i;
+
+    // Check matching elements individually. If one element has the accepted text and not rejected text, it's a match.
+    for (const selector of selectors) {
+      const nodes = Array.from(document.querySelectorAll(selector));
+      for (const node of nodes) {
+        const text = cleanText(node.innerText || node.textContent || "");
+        if (acceptedPattern.test(text) && !rejectedPattern.test(text)) {
+          return true;
+        }
+      }
+    }
+
     const scopedText = selectors
       .flatMap((selector) => Array.from(document.querySelectorAll(selector)))
       .map((node) => cleanText(node.innerText || node.textContent))
