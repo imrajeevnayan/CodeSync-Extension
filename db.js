@@ -218,6 +218,29 @@ async function saveCustomSheet(sheet) {
   });
 }
 
+async function deleteCustomSheet(sheetName) {
+  const db = await getDB();
+  delete progressCache[sheetName];
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction("custom_sheets", "readwrite");
+    const store = transaction.objectStore("custom_sheets");
+    const request = store.delete(sheetName);
+
+    request.onsuccess = async () => {
+      try {
+        const transProgress = db.transaction("progress", "readwrite");
+        const storeProgress = transProgress.objectStore("progress");
+        const req = storeProgress.delete(sheetName);
+        req.onsuccess = () => resolve();
+        req.onerror = () => resolve();
+      } catch (err) {
+        resolve();
+      }
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
 async function getCustomSheets() {
   const db = await getDB();
   return new Promise((resolve, reject) => {

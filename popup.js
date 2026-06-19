@@ -213,9 +213,13 @@ async function loadSheetsView() {
         ? `Last: ${new Date(progress.lastSolved).toLocaleDateString()}`
         : "Not started";
 
+      const deleteBtnHtml = sheetMeta.isCustom
+        ? `<button class="delete-sheet-btn" title="Delete custom sheet" data-name="${sheetMeta.name}">×</button>`
+        : "";
+
       card.innerHTML = `
         <div class="sheet-info-row">
-          <span class="sheet-title">${sheetMeta.name}</span>
+          <span class="sheet-title">${sheetMeta.name} ${deleteBtnHtml}</span>
           <span class="sheet-count">${solvedCount}<span>/${totalCount} (${pct}%)</span></span>
         </div>
         <div class="progress-bar-container">
@@ -223,6 +227,25 @@ async function loadSheetsView() {
         </div>
         <span class="sheet-timestamp">${lastSolvedText}</span>
       `;
+
+      if (sheetMeta.isCustom) {
+        const deleteBtn = card.querySelector(".delete-sheet-btn");
+        if (deleteBtn) {
+          deleteBtn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            if (confirm(`Are you sure you want to delete the custom sheet "${sheetMeta.name}"?`)) {
+              try {
+                await deleteCustomSheet(sheetMeta.name);
+                invalidateCompiledCache();
+                await loadSheetsView();
+              } catch (err) {
+                console.error("Failed to delete custom sheet:", err);
+              }
+            }
+          });
+        }
+      }
+
       sheetsGrid.appendChild(card);
     });
 

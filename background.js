@@ -307,6 +307,16 @@ async function handleSubmission(rawSubmission, sender) {
   // Save submission to IndexedDB to mark as processed
   await saveSubmission(problemKey, submission);
 
+  // Mark solved in sheets instantly
+  try {
+    const sheets = getSheetsForProblem(submission.platform, submission.slug, submission.title);
+    for (const sheet of sheets) {
+      await markSolvedInProgress(sheet, problemKey);
+    }
+  } catch (err) {
+    console.warn("CodeSync: Failed to update sheet progress instantly:", err);
+  }
+
   // Push sync job into queue
   const jobId = await addToQueue(submission);
   console.info(`CodeSync: Queued sync job ${jobId} for ${problemKey}`);

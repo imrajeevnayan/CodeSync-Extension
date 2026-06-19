@@ -372,6 +372,25 @@ h1 {
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
+  display: flex;
+  align-items: center;
+}
+
+.delete-sheet-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.15s ease;
+  margin-left: 6px;
+}
+
+.delete-sheet-btn:hover {
+  color: #ef4444;
 }
 
 .sheet-count {
