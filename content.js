@@ -87,7 +87,7 @@
     {
       id: "codingninjas",
       name: "Coding Ninjas (Code360)",
-      matches: () => hostIncludes("codingninjas.com") || (hostIncludes("naukri.com") && location.pathname.includes("/code360")),
+      matches: () => (hostIncludes("codingninjas.com") || (hostIncludes("naukri.com") && location.pathname.includes("/code360"))) && location.pathname.includes("/problems/"),
       extractor: extractCodingNinjas
     },
     {
