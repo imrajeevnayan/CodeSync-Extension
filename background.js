@@ -290,22 +290,24 @@ async function handleSubmission(rawSubmission, sender) {
   // Normalize data and extract slug/key
   const submission = normalizeSubmission(rawSubmission, sender);
   const problemKey = `${submission.platform.toLowerCase()}:${submission.slug.toLowerCase()}`;
+  const codeHash = hashString(submission.sourceCode || "");
+  const dedupeKey = `${problemKey}:${codeHash}`;
 
   // 1st Level LRU Fast Memory Cache Check
-  if (checkLRUIsDuplicate(problemKey)) {
-    console.info(`CodeSync: Ignored duplicate submission (LRU) for ${problemKey}`);
+  if (checkLRUIsDuplicate(dedupeKey)) {
+    console.info(`CodeSync: Ignored duplicate submission (LRU) for ${dedupeKey}`);
     return { ok: true, status: "ignored_duplicate" };
   }
 
   // 2nd Level Persistent DB check (fallback check)
-  const isDup = await isDuplicateSubmission(problemKey);
+  const isDup = await isDuplicateSubmission(dedupeKey);
   if (isDup) {
-    console.info(`CodeSync: Ignored duplicate submission (DB) for ${problemKey}`);
+    console.info(`CodeSync: Ignored duplicate submission (DB) for ${dedupeKey}`);
     return { ok: true, status: "ignored_duplicate" };
   }
 
   // Save submission to IndexedDB to mark as processed
-  await saveSubmission(problemKey, submission);
+  await saveSubmission(dedupeKey, submission);
 
   // Mark solved in sheets instantly
   try {
@@ -556,6 +558,110 @@ function buildGeneratedExplanation(submission) {
   const tags = submission.topics.filter((topic) => topic !== "Uncategorized");
   const tagText = tags.length ? ` The detected topics are ${tags.join(", ")}.` : "";
   return `This solution was accepted on ${submission.platform} using ${submission.language}.${tagText} Review the synced source file for the implementation details.`;
+}
+
+async function commitMultipleFilesViaTree({ token, repository, branch, author, files, message }) {
+  if (!files || files.length === 0) return;
+
+  const targetBranch = branch || "main";
+
+  // 1. Get the current commit SHA of the branch head
+  const refUrl = `https://api.github.com/repos/${repository}/git/ref/heads/${encodeURIComponent(targetBranch)}`;
+  const refRes = await githubFetch(refUrl, {
+    method: "GET",
+    headers: githubHeaders(token)
+  });
+
+  if (!refRes.ok) {
+    throw new Error(await githubErrorMessage(refRes, "Failed to get branch head ref"));
+  }
+
+  const refData = await refRes.json();
+  const parentCommitSha = refData?.object?.sha;
+  if (!parentCommitSha) {
+    throw new Error("Could not find parent commit SHA for branch " + targetBranch);
+  }
+
+  // 2. Get the tree SHA associated with the parent commit
+  const commitUrl = `https://api.github.com/repos/${repository}/git/commits/${parentCommitSha}`;
+  const commitRes = await githubFetch(commitUrl, {
+    method: "GET",
+    headers: githubHeaders(token)
+  });
+
+  if (!commitRes.ok) {
+    throw new Error(await githubErrorMessage(commitRes, "Failed to get parent commit details"));
+  }
+
+  const commitData = await commitRes.json();
+  const baseTreeSha = commitData?.tree?.sha;
+
+  // 3. Create a new tree containing all the files
+  const treeItems = files.map((file) => ({
+    path: file.path.replace(/^\/+/, ""),
+    mode: "100644",
+    type: "blob",
+    content: file.content
+  }));
+
+  const treeUrl = `https://api.github.com/repos/${repository}/git/trees`;
+  const treeRes = await githubFetch(treeUrl, {
+    method: "POST",
+    headers: githubHeaders(token),
+    body: JSON.stringify({
+      base_tree: baseTreeSha,
+      tree: treeItems
+    })
+  });
+
+  if (!treeRes.ok) {
+    throw new Error(await githubErrorMessage(treeRes, "Failed to create git tree"));
+  }
+
+  const newTreeData = await treeRes.json();
+  const newTreeSha = newTreeData?.sha;
+
+  // 4. Create the new commit pointing to the new tree
+  const newCommitUrl = `https://api.github.com/repos/${repository}/git/commits`;
+  const newCommitBody = {
+    message,
+    tree: newTreeSha,
+    parents: [parentCommitSha]
+  };
+
+  if (author) {
+    newCommitBody.author = author;
+    newCommitBody.committer = author;
+  }
+
+  const newCommitRes = await githubFetch(newCommitUrl, {
+    method: "POST",
+    headers: githubHeaders(token),
+    body: JSON.stringify(newCommitBody)
+  });
+
+  if (!newCommitRes.ok) {
+    throw new Error(await githubErrorMessage(newCommitRes, "Failed to create git commit"));
+  }
+
+  const newCommitData = await newCommitRes.json();
+  const newCommitSha = newCommitData?.sha;
+
+  // 5. Update branch reference to point to the new commit
+  const updateRefRes = await githubFetch(refUrl, {
+    method: "PATCH",
+    headers: githubHeaders(token),
+    body: JSON.stringify({
+      sha: newCommitSha,
+      force: false
+    })
+  });
+
+  if (!updateRefRes.ok) {
+    throw new Error(await githubErrorMessage(updateRefRes, "Failed to update branch ref"));
+  }
+
+  return updateRefRes.json();
 }
 
 async function putGitHubFile({ token, repository, branch, author, path, content, message }) {

@@ -132,9 +132,19 @@
   installObservers();
   scheduleExtraction("initial");
 
+  let fastPollInterval = null;
+
   function installObservers() {
     // Coding sites are often SPAs; watching DOM changes catches late verdict updates.
-    const observer = new MutationObserver(() => scheduleExtraction("mutation"));
+    const observer = new MutationObserver(() => {
+      if (location.href !== lastUrl) {
+        lastUrl = location.href;
+        scheduleExtraction("spa-route-mutation");
+      } else {
+        scheduleExtraction("mutation");
+      }
+    });
+
     observer.observe(document.documentElement, {
       childList: true,
       subtree: true,
@@ -149,26 +159,51 @@
       }
     });
 
-    // Actively monitor Submit clicks to start a polling interval for verdict arrival
+    // Active interval to detect SPA client-side navigations (e.g. Next.js router)
+    setInterval(() => {
+      if (location.href !== lastUrl) {
+        lastUrl = location.href;
+        console.info("CodeSync: Navigation detected ->", location.href);
+        scheduleExtraction("spa-interval");
+      }
+    }, 400);
+
+    // Actively monitor Submit clicks (buttons, roles, or submit classes)
     document.addEventListener("click", (event) => {
       const target = event.target;
       if (!target) return;
-      const btn = target.closest("button");
-      if (!btn) return;
-      const btnText = (btn.innerText || btn.textContent || "").toLowerCase();
-      const btnClass = typeof btn.className === "string" ? btn.className.toLowerCase() : "";
-      if (btnText.includes("submit") || btnClass.includes("submit")) {
-        console.info("CodeSync: Submit action detected, watching for verdict...");
-        let attempts = 0;
-        const interval = setInterval(() => {
-          attempts++;
-          scheduleExtraction(`submit-polling-${attempts}`);
-          if (attempts >= 30) {
-            clearInterval(interval);
-          }
-        }, 500);
+      const el = target.closest("button, [role='button'], [data-slot='button'], [class*='submit'], [id*='submit'], [class*='Submit']");
+      if (!el) return;
+      const text = (el.innerText || el.textContent || el.getAttribute("aria-label") || el.getAttribute("title") || "").toLowerCase();
+      const cls = typeof el.className === "string" ? el.className.toLowerCase() : "";
+      const id = typeof el.id === "string" ? el.id.toLowerCase() : "";
+      if (text.includes("submit") || cls.includes("submit") || id.includes("submit")) {
+        startFastVerdictPolling("Submit button click");
       }
     }, true);
+
+    // Also monitor Ctrl+Enter or Cmd+Enter (popular submit shortcut)
+    document.addEventListener("keydown", (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        startFastVerdictPolling("Ctrl+Enter shortcut");
+      }
+    }, true);
+  }
+
+  function startFastVerdictPolling(source) {
+    console.info(`CodeSync: ${source} detected! Actively checking for verdict...`);
+    if (fastPollInterval) {
+      clearInterval(fastPollInterval);
+    }
+    let attempts = 0;
+    fastPollInterval = setInterval(async () => {
+      attempts++;
+      const success = await detectAndSubmit(`fast-poll-${attempts}`);
+      if (success || attempts >= 35) {
+        clearInterval(fastPollInterval);
+        fastPollInterval = null;
+      }
+    }, 350);
   }
 
   function patchHistoryApi() {
@@ -191,9 +226,15 @@
   }
 
   function scheduleExtraction(reason) {
-    window.clearTimeout(checkTimer);
     const elapsed = Date.now() - lastCheckAt;
-    const wait = Math.max(CHECK_DEBOUNCE_MS, CHECK_THROTTLE_MS - elapsed);
+    if (elapsed > 1200) {
+      // Avoid debounce starvation; run immediately if over 1.2s since last check
+      window.clearTimeout(checkTimer);
+      detectAndSubmit(reason);
+      return;
+    }
+    window.clearTimeout(checkTimer);
+    const wait = Math.min(250, Math.max(50, CHECK_THROTTLE_MS - elapsed));
     checkTimer = window.setTimeout(() => detectAndSubmit(reason), wait);
   }
 
@@ -202,13 +243,13 @@
     const platform = PLATFORM_EXTRACTORS.find((candidate) => candidate.matches());
     if (!platform) {
       handleUnsupportedPlatform();
-      return;
+      return false;
     }
 
     try {
       const extracted = await platform.extractor(platform);
       if (!extracted || !extracted.accepted) {
-        return;
+        return false;
       }
 
       // Extract problem slug directly
@@ -229,14 +270,20 @@
         detectedAt: new Date().toISOString()
       };
 
+      if (!submission.sourceCode) {
+        return false;
+      }
+
       await sendSubmission(submission);
       console.info("CodeSync detected and sent submission:", reason, submission.title);
+      return true;
     } catch (error) {
       if (error?.message?.includes("Extension context invalidated") || !chrome.runtime?.id) {
         console.info("CodeSync: Extension was reloaded or updated. Please refresh the page to resume syncing.");
       } else {
         console.warn("CodeSync extraction failed:", error);
       }
+      return false;
     }
   }
 
@@ -262,10 +309,14 @@
         const match = path.match(/\/practice\/questions\/([^/]+)/) || path.match(/\/problems\/([^/]+)/);
         if (match) return match[1];
       } else if (platformId === "takeuforward") {
-        const match = path.match(/\/problems\/([^/?#]+)/) ||
-                      path.match(/\/practice\/(?:dsa|sql|quantitative)\/([^/?#]+)/) ||
-                      path.match(/\/(?:practice|plus)\/([^/?#]+)/);
-        if (match) return match[1];
+        const parts = path.split("/").filter(Boolean);
+        const genericWords = new Set(["practice", "plus", "dsa", "sql", "quantitative", "sheets", "problems", "courses"]);
+        for (let i = parts.length - 1; i >= 0; i--) {
+          const part = parts[i].toLowerCase();
+          if (!genericWords.has(part) && part.length > 1) {
+            return part;
+          }
+        }
       }
     } catch (e) {
       console.warn("Error parsing slug from pathname:", e);
@@ -877,14 +928,13 @@
       if (slug) {
         keysToCheck.push(`judge:draft-tabs:${slug}:all`);
         keysToCheck.push(`judge:draft-tabs:${slug}`);
-      }
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith("judge:draft-tabs:") && !keysToCheck.includes(k)) {
-          if (slug && k.toLowerCase().includes(slug.toLowerCase())) {
-            keysToCheck.unshift(k);
-          } else {
-            keysToCheck.push(k);
+        const lowerSlug = slug.toLowerCase();
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith("judge:draft-tabs:") && k.toLowerCase().includes(lowerSlug)) {
+            if (!keysToCheck.includes(k)) {
+              keysToCheck.push(k);
+            }
           }
         }
       }

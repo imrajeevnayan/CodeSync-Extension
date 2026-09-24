@@ -2,7 +2,6 @@
 
 let isQueueProcessing = false;
 let queueTimeoutId = null;
-let emptyQueueSleepMs = 5000; // 5-second sleep when queue empty
 
 function startQueueProcessor() {
   triggerQueueRun();
@@ -11,12 +10,11 @@ function startQueueProcessor() {
 function triggerQueueRun() {
   if (queueTimeoutId) {
     clearTimeout(queueTimeoutId);
+    queueTimeoutId = null;
   }
   
-  // Run processQueue dynamically
-  queueTimeoutId = setTimeout(() => {
-    processQueue().catch((err) => console.error("Error processing sync queue:", err));
-  }, 100);
+  // Run processQueue immediately
+  processQueue().catch((err) => console.error("Error processing sync queue:", err));
 }
 
 async function processQueue() {
@@ -29,17 +27,12 @@ async function processQueue() {
 
     if (pendingJobs.length === 0) {
       isQueueProcessing = false;
-      
-      // Sleep cycle: schedule next run in 5 seconds
-      queueTimeoutId = setTimeout(() => {
-        processQueue().catch((err) => console.error("Error processing sync queue:", err));
-      }, emptyQueueSleepMs);
       return;
     }
 
-    console.info(`Found ${pendingJobs.length} jobs in CodeSync sync queue. Processing micro-batch.`);
+    console.info(`Found ${pendingJobs.length} jobs in CodeSync sync queue. Processing batch.`);
 
-    // Micro-batch limit: 3 jobs max per cycle
+    // Process up to 3 jobs
     const batch = pendingJobs.slice(0, 3);
 
     for (const job of batch) {
@@ -79,11 +72,16 @@ async function processQueue() {
     console.error("Queue loop failure:", error);
   } finally {
     isQueueProcessing = false;
-    
-    // Process next batch soon (1.5 seconds)
-    queueTimeoutId = setTimeout(() => {
-      processQueue().catch((err) => console.error("Error processing sync queue:", err));
-    }, 1500);
+
+    // If more jobs arrived, process them soon
+    getQueueJobs().then((jobs) => {
+      const remaining = jobs.filter(j => j.status === "pending" || j.status === "failed");
+      if (remaining.length > 0) {
+        queueTimeoutId = setTimeout(() => {
+          processQueue().catch((err) => console.error("Error processing sync queue:", err));
+        }, 500);
+      }
+    }).catch(() => {});
   }
 }
 
@@ -113,52 +111,83 @@ async function executeJob(submission) {
     message: commitMessage
   };
 
-  // Sync to all computed base paths sequentially
+  const filesToCommit = [];
+
+  // Collect solution, problem README, and metadata for each target path
   for (const basePath of basePaths) {
-    await putGitHubFile({
-      ...writeContext,
+    filesToCommit.push({
       path: joinPath(basePath, solutionFileName),
       content: solutionContent
     });
 
-    await putGitHubFile({
-      ...writeContext,
+    filesToCommit.push({
       path: joinPath(basePath, "README.md"),
       content: readmeContent
     });
 
-    await putGitHubFile({
-      ...writeContext,
+    filesToCommit.push({
       path: joinPath(basePath, "metadata.json"),
       content: metadataContent
     });
   }
 
-  // Handle Global/Custom Metadata Folders
-  await updateSheetMetadata(submission, sheets, writeContext);
-
-  // Update repository README.md with latest sheets solved counts
+  // Collect updated sheets metadata
   try {
-    await updateReadmeSolvedCounts(writeContext);
+    const sheetMetaFile = await getUpdatedSheetMetadataFile(submission, sheets, writeContext);
+    if (sheetMetaFile) {
+      filesToCommit.push(sheetMetaFile);
+    }
   } catch (err) {
-    console.warn("Failed to update README solved counts:", err.message);
+    console.warn("Could not prepare sheet metadata file:", err.message);
   }
 
+  // Collect updated root README with solved table
+  try {
+    const rootReadmeFile = await getUpdatedReadmeFile(writeContext);
+    if (rootReadmeFile) {
+      filesToCommit.push(rootReadmeFile);
+    }
+  } catch (err) {
+    console.warn("Could not prepare root README update:", err.message);
+  }
+
+  // Collect daily streak if enabled
   if (settings.enableDailyStreak) {
-    await putGitHubFile({
-      ...writeContext,
+    filesToCommit.push({
       path: buildDailyStreakPath(submission, settings),
-      content: buildDailyStreakContent(submission),
-      message: `Update CodeSync streak: ${new Date(submission.detectedAt).toISOString().slice(0, 10)}`
+      content: buildDailyStreakContent(submission)
     });
+  }
+
+  // 1. Attempt fast single-commit push via Git Trees API
+  let committed = false;
+  try {
+    await commitMultipleFilesViaTree({
+      ...writeContext,
+      files: filesToCommit
+    });
+    committed = true;
+    console.info(`CodeSync: Pushed ${filesToCommit.length} files in 1 instant commit to GitHub!`);
+  } catch (treeError) {
+    console.warn("Git Tree commit failed, falling back to sequential writes:", treeError.message);
+  }
+
+  // 2. Fallback to sequential putGitHubFile if Git Tree API could not commit
+  if (!committed) {
+    for (const file of filesToCommit) {
+      await putGitHubFile({
+        ...writeContext,
+        path: file.path,
+        content: file.content
+      });
+    }
   }
 
   notify("CodeSync synced solution", `${submission.platform}: ${submission.title}`);
 }
 
-async function updateSheetMetadata(submission, sheets, writeContext) {
+async function getUpdatedSheetMetadataFile(submission, sheets, writeContext) {
   const metadataPath = "metadata/problem_sheets.json";
-  
   let existingIndex = {};
   try {
     const existingFile = await getGitHubFile(writeContext.token, `https://api.github.com/repos/${writeContext.repository}/contents/${metadataPath}`, writeContext.branch);
@@ -167,34 +196,29 @@ async function updateSheetMetadata(submission, sheets, writeContext) {
       existingIndex = JSON.parse(decoded);
     }
   } catch (e) {
-    console.info("Metadata file problem_sheets.json does not exist yet. Creating a new one.");
+    // Brand new file
   }
 
   const problemKey = `${submission.platform.toLowerCase()}:${submission.slug.toLowerCase()}`;
   existingIndex[problemKey] = sheets;
 
-  const content = JSON.stringify(existingIndex, null, 2) + "\n";
-
-  await putGitHubFile({
-    ...writeContext,
+  return {
     path: metadataPath,
-    content: content,
-    message: `Update sheets metadata for ${problemKey}`
-  });
+    content: JSON.stringify(existingIndex, null, 2) + "\n"
+  };
 }
 
-async function updateReadmeSolvedCounts(writeContext) {
+async function getUpdatedReadmeFile(writeContext) {
   const readmePath = "README.md";
   let readmeFile;
   try {
     readmeFile = await getGitHubFile(writeContext.token, `https://api.github.com/repos/${writeContext.repository}/contents/${readmePath}`, writeContext.branch);
   } catch (e) {
-    console.info("Could not fetch README.md to update solved progress:", e.message);
-    return;
+    return null;
   }
 
   if (!readmeFile || !readmeFile.content) {
-    return;
+    return null;
   }
 
   const progressList = await getAllProgress().catch(() => []);
@@ -210,7 +234,6 @@ async function updateReadmeSolvedCounts(writeContext) {
   const hasTable = updatedText.includes("Coding Sheets Progress") || updatedText.includes("Supported Coding Sheets");
 
   if (!hasTable) {
-    // Generate and append sheets progress table if missing
     const initialTable = getInitialProgressTable(solvedCounts);
     updatedText = updatedText.trim() + "\n\n" + initialTable;
     hasChanges = true;
@@ -231,14 +254,12 @@ async function updateReadmeSolvedCounts(writeContext) {
   }
 
   if (hasChanges) {
-    await putGitHubFile({
-      ...writeContext,
+    return {
       path: readmePath,
-      content: updatedText,
-      message: "docs: update sheets solved progress tracker in README"
-    });
-    console.info("Successfully updated sheets solved progress tracker in repository README.md");
+      content: updatedText
+    };
   }
+  return null;
 }
 
 function getInitialProgressTable(solvedCounts) {
