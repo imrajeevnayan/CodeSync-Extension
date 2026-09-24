@@ -765,20 +765,26 @@
 
     // 2. Check for explicit accepted header title (e.g. <h2>Accepted</h2>)
     const headerTitleEl = document.querySelector(
-      "[class*='VerdictPanel'] [class*='header_title'], [class*='VerdictPanel'] h2, [class*='header_title']"
+      "[class*='VerdictPanel'] [class*='header_title'], [class*='VerdictPanel'] h2, [class*='header_title'], [class*='verdict_title']"
     );
     const headerTitleText = cleanText(headerTitleEl?.innerText || headerTitleEl?.textContent || "");
-    const isHeaderAccepted = /^accepted$/i.test(headerTitleText);
+    const isHeaderAccepted = /\baccepted\b/i.test(headerTitleText);
 
-    // 3. Check for TUF's unique success message
+    // 3. Check for TUF's unique success message or scoped accepted text
     const hasSuccessMessage = /successfully passed all test cases/i.test(document.body?.innerText || "");
+    const hasScopedAcceptedText = pageHasAcceptedText([
+      "[class*='VerdictPanel']",
+      "[class*='Verdict']",
+      "[class*='verdict']",
+      "[class*='TestCasesPanel']"
+    ]);
 
     // 4. Check for active failure indicators
-    const hasFailCard = !!document.querySelector("[class*='verdict_test_case_fail_card']");
-    const isHeaderFailed = /^(wrong answer|time limit exceeded|compilation error|runtime error)$/i.test(headerTitleText);
+    const hasFailCard = !!document.querySelector("[class*='verdict_test_case_fail_card'], [class*='test_case_fail']");
+    const isHeaderFailed = /\b(wrong answer|time limit exceeded|compilation error|runtime error|failed)\b/i.test(headerTitleText);
 
     // Verdict is accepted if any accepted signal is true and no active failure signal is present
-    const accepted = (hasAcceptedCard || isHeaderAccepted || hasSuccessMessage) && !hasFailCard && !isHeaderFailed;
+    const accepted = (hasAcceptedCard || isHeaderAccepted || hasSuccessMessage || hasScopedAcceptedText) && !hasFailCard && !isHeaderFailed;
 
     if (!accepted) {
       return { accepted: false };
