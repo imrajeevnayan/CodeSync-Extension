@@ -148,6 +148,27 @@
         scheduleExtraction("visible");
       }
     });
+
+    // Actively monitor Submit clicks to start a polling interval for verdict arrival
+    document.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!target) return;
+      const btn = target.closest("button");
+      if (!btn) return;
+      const btnText = (btn.innerText || btn.textContent || "").toLowerCase();
+      const btnClass = typeof btn.className === "string" ? btn.className.toLowerCase() : "";
+      if (btnText.includes("submit") || btnClass.includes("submit")) {
+        console.info("CodeSync: Submit action detected, watching for verdict...");
+        let attempts = 0;
+        const interval = setInterval(() => {
+          attempts++;
+          scheduleExtraction(`submit-polling-${attempts}`);
+          if (attempts >= 30) {
+            clearInterval(interval);
+          }
+        }, 500);
+      }
+    }, true);
   }
 
   function patchHistoryApi() {
@@ -735,26 +756,35 @@
   }
 
   function extractTakeUForward() {
-    const hasAcceptedCard = !!document.querySelector("[class*='verdict_accepted_card'], [class*='verdict_accepted_review_card']");
-    const accepted = hasAcceptedCard || pageHasAcceptedText([
-      "[class*='VerdictPanel'] [class*='header_title']",
-      "[class*='header_title']",
-      "[class*='verdict_accepted_card']",
-      "[class*='accepted_card_heading']",
-      "[class*='VerdictPanel'] [class*='header_message']",
-      "[class*='VerdictPanel']",
-      "[class*='TestCasesPanel']"
-    ]);
+    const slug = getProblemSlug("takeuforward", "");
 
-    const hasFailed = pageHasAnyElementText([
-      "[class*='VerdictPanel'] [class*='header_title']",
-      "[class*='VerdictPanel'] [class*='header_message']",
-      "[class*='verdict_test_case_fail_card']"
-    ], /\b(wrong answer|time limit exceeded|compilation error|runtime error|processing\.\.\.|no verdict)\b/i);
+    // 1. Check for explicit accepted verdict card/heading
+    const hasAcceptedCard = !!document.querySelector(
+      "[class*='verdict_accepted_card'], [class*='verdict_accepted_review_card'], [class*='accepted_card_heading']"
+    );
 
-    if (!accepted || hasFailed) {
+    // 2. Check for explicit accepted header title (e.g. <h2>Accepted</h2>)
+    const headerTitleEl = document.querySelector(
+      "[class*='VerdictPanel'] [class*='header_title'], [class*='VerdictPanel'] h2, [class*='header_title']"
+    );
+    const headerTitleText = cleanText(headerTitleEl?.innerText || headerTitleEl?.textContent || "");
+    const isHeaderAccepted = /^accepted$/i.test(headerTitleText);
+
+    // 3. Check for TUF's unique success message
+    const hasSuccessMessage = /successfully passed all test cases/i.test(document.body?.innerText || "");
+
+    // 4. Check for active failure indicators
+    const hasFailCard = !!document.querySelector("[class*='verdict_test_case_fail_card']");
+    const isHeaderFailed = /^(wrong answer|time limit exceeded|compilation error|runtime error)$/i.test(headerTitleText);
+
+    // Verdict is accepted if any accepted signal is true and no active failure signal is present
+    const accepted = (hasAcceptedCard || isHeaderAccepted || hasSuccessMessage) && !hasFailCard && !isHeaderFailed;
+
+    if (!accepted) {
       return { accepted: false };
     }
+
+    console.info("CodeSync: TakeUForward accepted verdict confirmed! Extracting problem and solution data...");
 
     const rawTitle = textFromSelectors([
       "h1[class*='ProblemPanel']",
@@ -775,14 +805,29 @@
     const diffMatch = difficulty.match(/\b(Easy|Medium|Hard|Basic)\b/i);
     difficulty = diffMatch ? diffMatch[1] : (inferDifficultyFromText(document.body?.innerText) || "Medium");
 
-    const language = textFromSelectors([
+    // Retrieve pristine source code and language from localStorage (or fallback to Monaco DOM)
+    const tufData = getTakeUForwardData(slug);
+
+    let language = textFromSelectors([
       "[class*='languageSelect'] [data-slot='select-value']",
       "[class*='CodePanel'] [class*='languageSelect']",
       "[class*='languageSelect']",
       "span[data-slot='select-value']"
-    ]) || detectLanguageFromPage();
+    ]);
 
-    const sourceCode = codeFromMonaco() || codeFromCodeMirror() || codeFromAce() || codeFromSelectors(["pre", "code", "textarea"]);
+    if (!language && tufData.language) {
+      language = normalizeTufLanguage(tufData.language);
+    }
+    if (!language) {
+      language = detectLanguageFromPage();
+    }
+
+    const sourceCode = tufData.code || codeFromMonaco() || codeFromCodeMirror() || codeFromAce() || codeFromSelectors(["pre", "code", "textarea"]);
+
+    if (!sourceCode) {
+      console.warn("CodeSync: TakeUForward solution was accepted, but source code is not yet accessible.");
+      return { accepted: false };
+    }
 
     const topics = topicsFromSelectors([
       "[class*='GlobalSidebarContent'] [class*='section_header_label']",
@@ -815,6 +860,63 @@
       description,
       problemUrl: canonicalUrl()
     };
+  }
+
+  function getTakeUForwardData(slug) {
+    let code = "";
+    let language = "";
+
+    try {
+      const keysToCheck = [];
+      if (slug) {
+        keysToCheck.push(`judge:draft-tabs:${slug}:all`);
+        keysToCheck.push(`judge:draft-tabs:${slug}`);
+      }
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("judge:draft-tabs:") && !keysToCheck.includes(k)) {
+          if (slug && k.toLowerCase().includes(slug.toLowerCase())) {
+            keysToCheck.unshift(k);
+          } else {
+            keysToCheck.push(k);
+          }
+        }
+      }
+
+      for (const key of keysToCheck) {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        try {
+          const parsed = JSON.parse(raw);
+          const record = parsed?.record || parsed;
+          const tabs = Array.isArray(record?.tabs) ? record.tabs : [];
+          const activeTab = tabs.find((t) => t.id === record?.activeTabId) || tabs.find((t) => t.isActive) || tabs[0];
+          if (activeTab && activeTab.code && cleanCode(activeTab.code).length > 5) {
+            code = cleanCode(activeTab.code);
+            if (activeTab.language) {
+              language = activeTab.language;
+            }
+            break;
+          }
+        } catch (e) {}
+      }
+    } catch (e) {
+      console.warn("CodeSync: Error reading TakeUForward localStorage:", e);
+    }
+
+    return { code, language };
+  }
+
+  function normalizeTufLanguage(lang) {
+    const l = String(lang || "").toLowerCase().trim();
+    if (l === "cpp" || l === "c++") return "C++";
+    if (l === "java") return "Java";
+    if (l === "python" || l === "py" || l === "python3") return "Python 3";
+    if (l === "javascript" || l === "js") return "JavaScript";
+    if (l === "csharp" || l === "cs" || l === "c#") return "C#";
+    if (l === "go" || l === "golang") return "Go";
+    if (l === "sql") return "SQL";
+    return lang;
   }
 
   function pageHasAnyElementText(selectors, pattern) {
