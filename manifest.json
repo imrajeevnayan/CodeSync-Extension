@@ -39,7 +39,9 @@
     "https://*.naukri.com/*",
     "https://*.lintcode.com/*",
     "https://*.hynts.in/*",
-    "https://*.codolio.com/*"
+    "https://*.codolio.com/*",
+    "https://takeuforward.org/*",
+    "https://*.takeuforward.org/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -70,7 +72,9 @@
         "https://onlinejudge.org/*",
         "https://uva.onlinejudge.org/*",
         "https://*.naukri.com/*",
-        "https://*.lintcode.com/*"
+        "https://*.lintcode.com/*",
+        "https://takeuforward.org/*",
+        "https://*.takeuforward.org/*"
       ],
       "js": [
         "content.js"

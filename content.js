@@ -119,6 +119,12 @@
       name: "LintCode",
       matches: () => hostIncludes("lintcode.com"),
       extractor: extractLintCode
+    },
+    {
+      id: "takeuforward",
+      name: "TakeUForward",
+      matches: () => hostIncludes("takeuforward.org"),
+      extractor: extractTakeUForward
     }
   ];
 
@@ -233,6 +239,11 @@
         if (match) return match[1];
       } else if (platformId === "neetcode") {
         const match = path.match(/\/practice\/questions\/([^/]+)/) || path.match(/\/problems\/([^/]+)/);
+        if (match) return match[1];
+      } else if (platformId === "takeuforward") {
+        const match = path.match(/\/problems\/([^/?#]+)/) ||
+                      path.match(/\/practice\/(?:dsa|sql|quantitative)\/([^/?#]+)/) ||
+                      path.match(/\/(?:practice|plus)\/([^/?#]+)/);
         if (match) return match[1];
       }
     } catch (e) {
@@ -721,6 +732,107 @@
       description: textFromSelectors(["#col3_content", ".problem", "article", ".content"]),
       problemUrl: canonicalUrl()
     };
+  }
+
+  function extractTakeUForward() {
+    const hasAcceptedCard = !!document.querySelector("[class*='verdict_accepted_card'], [class*='verdict_accepted_review_card']");
+    const accepted = hasAcceptedCard || pageHasAcceptedText([
+      "[class*='VerdictPanel'] [class*='header_title']",
+      "[class*='header_title']",
+      "[class*='verdict_accepted_card']",
+      "[class*='accepted_card_heading']",
+      "[class*='VerdictPanel'] [class*='header_message']",
+      "[class*='VerdictPanel']",
+      "[class*='TestCasesPanel']"
+    ]);
+
+    const hasFailed = pageHasAnyElementText([
+      "[class*='VerdictPanel'] [class*='header_title']",
+      "[class*='VerdictPanel'] [class*='header_message']",
+      "[class*='verdict_test_case_fail_card']"
+    ], /\b(wrong answer|time limit exceeded|compilation error|runtime error|processing\.\.\.|no verdict)\b/i);
+
+    if (!accepted || hasFailed) {
+      return { accepted: false };
+    }
+
+    const rawTitle = textFromSelectors([
+      "h1[class*='ProblemPanel']",
+      "[class*='ProblemPanel'] h1",
+      "[class*='ProblemPanel-module'][class*='title']",
+      "h1"
+    ]) || getDocumentTitle();
+
+    const title = rawTitle.replace(/^\s*\d+[\s\.\-_:]+/, "").trim() || rawTitle;
+
+    let difficulty = textFromSelectors([
+      "[class*='ProblemPanel'] [class*='metaRow'] button",
+      "[class*='metaRow'] [class*='Tag']",
+      "[class*='metaRow']",
+      "[class*='difficulty']",
+      "[class*='Difficulty']"
+    ]);
+    const diffMatch = difficulty.match(/\b(Easy|Medium|Hard|Basic)\b/i);
+    difficulty = diffMatch ? diffMatch[1] : (inferDifficultyFromText(document.body?.innerText) || "Medium");
+
+    const language = textFromSelectors([
+      "[class*='languageSelect'] [data-slot='select-value']",
+      "[class*='CodePanel'] [class*='languageSelect']",
+      "[class*='languageSelect']",
+      "span[data-slot='select-value']"
+    ]) || detectLanguageFromPage();
+
+    const sourceCode = codeFromMonaco() || codeFromCodeMirror() || codeFromAce() || codeFromSelectors(["pre", "code", "textarea"]);
+
+    const topics = topicsFromSelectors([
+      "[class*='GlobalSidebarContent'] [class*='section_header_label']",
+      "[class*='GlobalSidebarContent'] [class*='sidebar_item']",
+      "[class*='breadcrumb'] a",
+      "[class*='tag']"
+    ]);
+
+    const runtime = metricFromPage(/(?:runtime|time)\s*:?\s*([.\d]+\s*(?:ms|s))/i) ||
+      textFromSelectors(["[class*='metrics_v2_item']"]);
+
+    const memory = metricFromPage(/memory\s*:?\s*([.\d]+\s*(?:mb|kb|gb))/i);
+
+    const description = textFromSelectors([
+      "[class*='ProblemPanel'] [class*='richText']",
+      "[class*='ProblemPanel'] [class*='content']",
+      "[class*='ProblemPanel']",
+      "article"
+    ]);
+
+    return {
+      accepted: true,
+      title,
+      language,
+      sourceCode,
+      topics,
+      difficulty,
+      runtime,
+      memory,
+      description,
+      problemUrl: canonicalUrl()
+    };
+  }
+
+  function pageHasAnyElementText(selectors, pattern) {
+    for (const selector of selectors) {
+      const nodes = Array.from(document.querySelectorAll(selector));
+      for (const node of nodes) {
+        const text = cleanText(node.innerText || node.textContent || "");
+        if (pattern.test(text)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function inferDifficultyFromText(text) {
+    const match = String(text || "").match(/\b(Easy|Medium|Hard)\b/i);
+    return match ? match[1] : "";
   }
 
   function pageHasAcceptedText(selectors) {

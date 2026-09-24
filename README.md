@@ -66,6 +66,7 @@ CodeSync/
 - CSES
 - UVa Online Judge
 - LintCode
+- TakeUForward (takeuforward.org/practice)
 
 ## Supported Coding Sheets
 

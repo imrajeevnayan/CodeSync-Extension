@@ -712,7 +712,7 @@ async function syncRepositoryHistory() {
     const tree = data.tree || [];
     
     let processedCount = 0;
-    const platforms = ["leetcode", "geeksforgeeks", "gfg", "interviewbit", "cses", "codingninjas", "neetcode", "lintcode"];
+    const platforms = ["leetcode", "geeksforgeeks", "gfg", "interviewbit", "cses", "codingninjas", "neetcode", "lintcode", "takeuforward", "tuf"];
 
     // Compile active sheets (merges precompiled & custom imports)
     await compileInvertedIndex();
@@ -742,6 +742,7 @@ async function syncRepositoryHistory() {
       else if (platformDir.includes("codingninjas") || platformDir.includes("code360")) platform = "codingninjas";
       else if (platformDir.includes("neetcode")) platform = "neetcode";
       else if (platformDir.includes("lintcode")) platform = "lintcode";
+      else if (platformDir.includes("takeuforward") || platformDir.includes("tuf")) platform = "takeuforward";
 
       const problemKey = `${platform}:${problemSlug}`;
 
@@ -803,10 +804,18 @@ function parseProblemUrlOrSlug(str) {
     else if (host.includes("neetcode")) platform = "neetcode";
     else if (host.includes("cses")) platform = "cses";
     else if (host.includes("codeforces")) platform = "codeforces";
+    else if (host.includes("takeuforward")) platform = "takeuforward";
 
     if (platform) {
       let slug = "";
-      if (pathParts.includes("problems")) {
+      if (host.includes("takeuforward")) {
+        const specialIdx = ["dsa", "sql", "quantitative", "problems"].map(k => pathParts.indexOf(k)).filter(idx => idx !== -1);
+        if (specialIdx.length > 0) {
+          slug = pathParts[Math.max(...specialIdx) + 1] || "";
+        } else {
+          slug = pathParts[pathParts.length - 1] || "";
+        }
+      } else if (pathParts.includes("problems")) {
         slug = pathParts[pathParts.indexOf("problems") + 1] || "";
       } else {
         slug = pathParts[pathParts.length - 1] || "";

@@ -180,6 +180,7 @@ function getStandardPlatformPrefix(platform) {
   if (plat === "geeksforgeeks" || plat === "gfg") return "gfg";
   if (plat === "codingninjas" || plat === "code360" || plat === "coding ninjas (code360)") return "codingninjas";
   if (plat === "interviewbit" || plat === "ib") return "interviewbit";
+  if (plat === "takeuforward" || plat === "tuf" || plat === "take u forward") return "takeuforward";
   return plat;
 }
 
@@ -401,7 +402,7 @@ async function importSheetFromGitHub(repoPath, sheetName, token) {
   const tree = data.tree || [];
 
   const problems = [];
-  const platforms = ["leetcode", "gfg", "cses", "interviewbit", "neetcode", "codingninjas"];
+  const platforms = ["leetcode", "gfg", "cses", "interviewbit", "neetcode", "codingninjas", "takeuforward", "tuf"];
 
   tree.forEach((file) => {
     // Only parse files in problem directories or containing solution codes
